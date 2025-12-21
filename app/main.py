@@ -1,11 +1,21 @@
 from fastapi import FastAPI
-from app.routers import chat
 
-app = FastAPI(title="Thesis Agent Backend")
+from app.api import chat, health
+from app.core.logging import configure_logging
+from app.core.settings import get_settings
 
-# Register the router
-app.include_router(chat.router, prefix="/api/v1")
 
-@app.get("/")
-def health_check():
-    return {"status": "running", "service": "Conversational Ad AI"}
+def create_app() -> FastAPI:
+    settings = get_settings()
+    configure_logging(settings)
+
+    app = FastAPI(title=settings.app_name)
+
+    app.include_router(chat.router, prefix="/api/v1")
+
+    app.include_router(health.router)
+
+    return app
+
+
+app = create_app()

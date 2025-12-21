@@ -1,0 +1,152 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from decimal import Decimal
+
+from sqlalchemy import (
+    ARRAY,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    SmallInteger,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from pgvector.sqlalchemy import Vector
+
+from app.db.base import Base
+
+
+class DocumentEmbedding(Base):
+    """Example pgvector-backed embedding table.
+
+    Keep this as a starting point; for production, you typically add tenant keys,
+    created_at/updated_at timestamps, and metadata fields.
+    """
+
+    __tablename__ = "document_embeddings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # NOTE: pgvector requires a fixed dimension. Update the number to match your embedding model.
+    embedding: Mapped[list[float]] = mapped_column(Vector(768), nullable=False)
+
+
+class Ad(Base):
+    __tablename__ = "ads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+
+    keywords: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    image_url: Mapped[str | None] = mapped_column(Text)
+
+    cpc: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False, server_default="0.00")
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(768))
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    campaign_links: Mapped[list["AdCampaign"]] = relationship(
+        "AdCampaign",
+        back_populates="ad",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class AdCampaign(Base):
+    __tablename__ = "ad_campaigns"
+    __table_args__ = (
+        UniqueConstraint("ad_id", "campaign_id", name="uq_ad_campaign"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    ad_id: Mapped[int] = mapped_column(
+        ForeignKey("ads.id", ondelete="CASCADE"), nullable=False
+    )
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False
+    )
+
+    click_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+    ad: Mapped[Ad] = relationship("Ad", back_populates="campaign_links")
+    campaign: Mapped["Campaign"] = relationship("Campaign", back_populates="ad_links")
+
+
+class Campaign(Base):
+    __tablename__ = "campaigns"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    company: Mapped[str] = mapped_column(Text, nullable=False)
+
+    budget: Mapped[float] = mapped_column(
+        Numeric(10, 2), nullable=False, server_default="0.00"
+    )
+    spending: Mapped[float] = mapped_column(
+        Numeric(10, 2), nullable=False, server_default="0.00"
+    )
+
+    # 1 = Active, 0 = Paused
+    is_enabled: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, server_default="1"
+    )
+
+    start_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    end_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    ad_links: Mapped[list[AdCampaign]] = relationship(
+        "AdCampaign",
+        back_populates="campaign",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    @property
+    def is_running(self) -> bool:
+        now = datetime.now(timezone.utc)
+
+        # 1) Manual switch
+        if self.is_enabled == 0:
+            return False
+
+        # 2) Dates
+        start = self.start_date
+        end = self.end_date
+
+        # Defensive: normalize naive datetimes to UTC
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        if end is not None and end.tzinfo is None:
+            end = end.replace(tzinfo=timezone.utc)
+
+        if end is not None and now > end:
+            return False
+        if now < start:
+            return False
+
+        # 3) Budget
+        # SQLAlchemy Numeric typically yields Decimal; keep comparisons stable.
+        budget = self.budget if isinstance(self.budget, Decimal) else Decimal(str(self.budget))
+        spending = (
+            self.spending
+            if isinstance(self.spending, Decimal)
+            else Decimal(str(self.spending))
+        )
+        if spending >= budget:
+            return False
+
+        return True
