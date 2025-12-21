@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     )
     gemini_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_MODEL")
 
+    # Embeddings
+    # NOTE: DB schema uses Vector(768). Keep these aligned.
+    gemini_embedding_model: str = Field(
+        default="text-embedding-004", alias="GEMINI_EMBEDDING_MODEL"
+    )
+    gemini_embedding_dim: int = Field(default=768, alias="GEMINI_EMBEDDING_DIM")
+
     db_host: str = Field(default="localhost", alias="POSTGRES_HOST")
     db_port: int = Field(default=5432, alias="POSTGRES_PORT")
     db_user: str = Field(default="app", alias="POSTGRES_USER")

@@ -57,6 +57,17 @@ Before running migrations, enable pgvector as a privileged user (or via managed 
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
+Create Embeddings for Ads records that have it equal to NULL:
+```zsh
+python -m app.scripts.fill_ads_embeddings
+```
+
+Variables from `env-model` that are currently used:
+```zsh
+GEMINI_EMBEDDING_MODEL=text-embedding-004
+GEMINI_EMBEDDING_DIM=768
+```
+
 ### Migrations (Alembic)
 
 Apply the latest migrations:

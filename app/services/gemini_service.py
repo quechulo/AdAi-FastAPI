@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 
 from google import genai
 from google.genai import types
+from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
 from app.core.settings import Settings, get_settings
 from app.models.chat import ChatMessage
@@ -58,3 +60,58 @@ class GeminiService:
         except Exception:
             logger.exception("Gemini request failed")
             raise
+
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+
+        expected_dim = int(self._settings.gemini_embedding_dim)
+
+        @retry(
+            stop=stop_after_attempt(4),
+            wait=wait_exponential_jitter(initial=1, max=20),
+            reraise=True,
+        )
+        def _embed() -> list[list[float]]:
+            response = self._client.models.embed_content(
+                model=self._settings.gemini_embedding_model,
+                contents=texts,
+                config=types.EmbedContentConfig(
+                    task_type="RETRIEVAL_DOCUMENT",
+                    output_dimensionality=expected_dim,
+                ),
+            )
+
+            embeddings = getattr(response, "embeddings", None)
+            if embeddings is None:
+                raise RuntimeError("Gemini embed_content returned no embeddings")
+
+            vectors: list[list[float]] = []
+            for emb in embeddings:
+                values = getattr(emb, "values", None)
+                if values is None:
+                    raise RuntimeError("Gemini embedding item had no values")
+                vec = [float(x) for x in values]
+                if len(vec) != expected_dim:
+                    raise ValueError(
+                        f"Embedding dimension mismatch: got {len(vec)} expected {expected_dim}"
+                    )
+                if not all(math.isfinite(x) for x in vec):
+                    raise ValueError("Embedding contains non-finite values")
+                vectors.append(vec)
+
+            if len(vectors) != len(texts):
+                raise RuntimeError(
+                    f"Gemini embeddings count mismatch: got {len(vectors)} expected {len(texts)}"
+                )
+            return vectors
+
+        try:
+            return await asyncio.to_thread(_embed)
+        except Exception:
+            logger.exception("Gemini embeddings request failed")
+            raise
+
+    async def embed_text(self, text: str) -> list[float]:
+        vectors = await self.embed_texts([text])
+        return vectors[0]
