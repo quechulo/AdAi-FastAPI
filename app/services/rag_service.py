@@ -15,11 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 _RAG_PROMPT = PromptTemplate.from_template(
-    """You are an assistant that helps choose the best matching ads for a user query.
+    """You are an assistant that helps users with their problems and if possible, choose the best matching ads for a user query/needs.
 
 Rules:
 - Use ONLY the provided ads as factual sources.
-- If none of the ads are relevant, say you couldn't find a good match.
+- If none of the ads are relevant, do not provide any ads.
 - Do not invent ad URLs, titles, or claims not present in the ads.
 
 User query:
