@@ -4,7 +4,7 @@ from app.main import create_app
 
 
 class _FakeGeminiService:
-    async def generate_chat_response(self, message: str, history):
+    async def generate_chat_response(self, message: str, history, *, tools=None, max_tool_steps: int = 6):
         return f"echo:{message}"
 
 

@@ -10,6 +10,7 @@ from app.db.retrieval import AdsVectorRepository
 from app.models.chat import ChatMessage
 from app.models.rag import RagCitation, RagResponse
 from app.services.gemini_service import GeminiService
+from app.services.tool_runner import ToolRunner
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +39,12 @@ class RagService:
         self,
         db: Session,
         gemini_service: GeminiService,
+        tools: ToolRunner | None = None,
         settings: Settings | None = None,
     ) -> None:
         self._db = db
         self._gemini = gemini_service
+        self._tools = tools
         self._settings = settings or get_settings()
 
     async def answer(
@@ -55,7 +58,11 @@ class RagService:
             query_embedding = await self._gemini.embed_text(message)
         except Exception:
             logger.exception("RAG: failed to embed query; falling back to generic answer")
-            response_text = await self._gemini.generate_chat_response(message=message, history=history)
+            response_text = await self._gemini.generate_chat_response(
+                message=message,
+                history=history,
+                tools=self._tools,
+            )
             return RagResponse(response=response_text, citations=[])
 
         # 2) Retrieve similar ads
@@ -64,7 +71,11 @@ class RagService:
 
         # 3) Fallback when nothing relevant is found
         if not matches:
-            response_text = await self._gemini.generate_chat_response(message=message, history=history)
+            response_text = await self._gemini.generate_chat_response(
+                message=message,
+                history=history,
+                tools=self._tools,
+            )
             return RagResponse(response=response_text, citations=[])
 
         # 4) Build context + citations payload
@@ -96,6 +107,10 @@ class RagService:
         rag_message = _RAG_PROMPT.format(question=message, context=context)
 
         # 5) Generate grounded answer
-        response_text = await self._gemini.generate_chat_response(message=rag_message, history=history)
+        response_text = await self._gemini.generate_chat_response(
+            message=rag_message,
+            history=history,
+            tools=self._tools,
+        )
 
         return RagResponse(response=response_text, citations=citations)
