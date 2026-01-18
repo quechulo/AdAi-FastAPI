@@ -35,7 +35,7 @@ def test_rag_happy_path_with_citations():
 
     client = TestClient(app)
     r = client.post(
-        "/api/v1/rag",
+        "/api/v1/rag-chat",
         json={"message": "hi", "history": [], "top_k": 3},
     )
 
@@ -56,7 +56,7 @@ def test_rag_schema_defaults():
     app.dependency_overrides[rag_api.get_rag_service] = lambda: _FakeRagService()
 
     client = TestClient(app)
-    r = client.post("/api/v1/rag", json={"message": "hi"})
+    r = client.post("/api/v1/rag-chat", json={"message": "hi"})
     assert r.status_code == 200
 
 
@@ -68,5 +68,5 @@ def test_rag_top_k_validation():
     app.dependency_overrides[rag_api.get_rag_service] = lambda: _FakeRagService()
 
     client = TestClient(app)
-    r = client.post("/api/v1/rag", json={"message": "hi", "top_k": 0})
+    r = client.post("/api/v1/rag-chat", json={"message": "hi", "top_k": 0})
     assert r.status_code == 422
