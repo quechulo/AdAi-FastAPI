@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     )
     gemini_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_MODEL")
 
+    # Optional: system prompt used only by McpService.
+    # Lets you guide the agent behavior without affecting other Gemini usages.
+    mcp_system_prompt: str | None = Field(default=None, alias="MCP_SYSTEM_PROMPT")
+
     # Embeddings
     # NOTE: DB schema uses Vector(768). Keep these aligned.
     gemini_embedding_model: str = Field(

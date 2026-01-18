@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/rag", response_model=RagResponse)
+@router.post("/rag-chat", response_model=RagResponse)
 async def rag_endpoint(
     request: RagRequest,
     rag_service: RagService = Depends(get_rag_service),

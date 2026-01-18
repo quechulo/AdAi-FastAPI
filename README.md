@@ -14,6 +14,9 @@ Use `.env-model` for Gemini/model settings only (see `.env-model.example`).
 ```env
 GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-1.5-flash
+
+# Optional: guide the MCP agent endpoint (/api/v1/mcp-chat) only
+MCP_SYSTEM_PROMPT="You are a concise assistant. If you use tools, mention which tool you used."
 ```
 
 ### `.env` (example)

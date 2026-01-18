@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.api import chat, health, rag
+from app.api import chat, health, rag, mcp
 from app.core.logging import configure_logging
 from app.core.settings import get_settings
 
@@ -13,6 +13,7 @@ def create_app() -> FastAPI:
 
     app.include_router(chat.router, prefix="/api/v1")
     app.include_router(rag.router, prefix="/api/v1")
+    app.include_router(mcp.router, prefix="/api/v1")
 
     app.include_router(health.router)
 
