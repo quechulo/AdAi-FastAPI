@@ -38,13 +38,13 @@ class McpService:
         history: list[ChatMessage],
         max_tool_steps: int = 6,
     ) -> str:
-        
+
         # 1. Prepare Initial Chat History
         contents: list[types.Content] = []
         for msg in history:
             role = "model" if msg.role == "assistant" else "user"
-            contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg.content)]))
-        
+            contents.append(types.Content(role=role, parts=[types.Part.from_text(text=part) for part in msg.parts]))
+
         contents.append(types.Content(role="user", parts=[types.Part.from_text(text=message)]))
 
         try:

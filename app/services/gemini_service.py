@@ -33,11 +33,10 @@ class GeminiService:
             if role not in {"user", "model"}:
                 # Keep behavior predictable even if callers pass "assistant" etc.
                 role = "model" if role == "assistant" else "user"
-            contents.append(
-                types.Content(
-                    role=role, parts=[types.Part.from_text(text=msg.content)]
-                )
-            )
+            parts = [types.Part.from_text(text=part) for part in msg.parts]
+            if not parts:
+                parts = [types.Part.from_text(text="")]
+            contents.append(types.Content(role=role, parts=parts))
 
         contents.append(
             types.Content(role="user", parts=[types.Part.from_text(text=message)])
