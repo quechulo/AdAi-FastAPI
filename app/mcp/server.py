@@ -1,4 +1,3 @@
-# app/mcp/server.py
 from mcp.server.fastmcp import FastMCP
 import anyio
 import sqlalchemy as sa
@@ -32,7 +31,7 @@ def _ad_to_payload(ad: Ad) -> dict[str, Any]:
 @mcp.tool(description="Search ads by a keyword in title/description/keywords. Returns a small bounded list.")
 async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
     """
-    Search for ads matching the given keyword.
+    Search ads by a given keyword in title/description/keywords of ad. Returns a small bounded list.
     
     Args:
         keyword: Keyword or phrase to search for.
@@ -79,9 +78,6 @@ async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
         finally:
             session_gen.close()
     tool_result = await anyio.to_thread.run_sync(_query_ads)
-    print("--------------------")
-    print("Tool result:", tool_result)
-    print("--------------------")
 
     return tool_result
 

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class ChatMessage(BaseModel):
     role: str  # "user" or "model"
-    content: str
+    parts: list[str]
 
 
 class ChatRequest(BaseModel):
