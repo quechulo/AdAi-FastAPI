@@ -28,7 +28,7 @@ class AdAgentService:
             )
 
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-3-flash-preview",
+            model="gemini-2.5-flash",
             temperature=0,
             api_key=self._settings.gemini_api_key,
         )
@@ -57,6 +57,28 @@ class AdAgentService:
                 lc_history.append(AIMessage(content=content))
         return lc_history
 
+    @staticmethod
+    def _content_to_text(content: object) -> str:
+        if content is None:
+            return ""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, dict):
+            # Gemini/LangChain parts sometimes look like {"type": "text", "text": "..."}
+            for key in ("text", "content", "value"):
+                value = content.get(key)
+                if isinstance(value, str):
+                    return value
+            return ""
+        if isinstance(content, list):
+            parts: list[str] = []
+            for part in content:
+                text = AdAgentService._content_to_text(part)
+                if text:
+                    parts.append(text)
+            return "\n".join(parts)
+        return str(content)
+
     async def analyze_and_get_ad(
         self, history: list[ChatMessage] | list[BaseMessage], latest_message: str
     ) -> str | None:
@@ -69,25 +91,27 @@ class AdAgentService:
             messages: list[BaseMessage] = [*lc_history, HumanMessage(content=latest_message)]
             result = await self.agent.ainvoke({"messages": messages})
 
-            logger.exception("---------------------------------------")
-            logger.exception("Ad Agent Result: %s", result)
-            logger.exception("---------------------------------------")
+            logger.debug("Ad Agent Result: %s", result)
             result_messages = result.get("messages", []) if isinstance(result, dict) else []
             output = ""
             for msg in reversed(result_messages):
                 if isinstance(msg, AIMessage):
-                    output = (msg.content or "").strip()
-                    break
+                    candidate = self._content_to_text(getattr(msg, "content", None)).strip()
+                    if candidate:
+                        output = candidate
+                        break
                 if isinstance(msg, dict):
                     role = (msg.get("role") or "").lower()
                     if role in {"assistant", "ai"}:
-                        output = (msg.get("content") or "").strip()
-                        break
+                        candidate = self._content_to_text(msg.get("content")).strip()
+                        if candidate:
+                            output = candidate
+                            break
 
             cleaned = output.strip().strip('"\'')
             if not cleaned:
                 return None
-            return None if cleaned.upper() == "NO_AD" or "NO_AD" in cleaned.upper() else cleaned
+            return None if cleaned.upper() == "NO_AD" else cleaned
         except Exception:
             logger.exception("AdAgentService failed while analyzing and fetching ad")
             return None
