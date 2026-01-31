@@ -91,7 +91,7 @@ class AdAgentService:
             messages: list[BaseMessage] = [*lc_history, HumanMessage(content=latest_message)]
             result = await self.agent.ainvoke({"messages": messages})
 
-            logger.debug("Ad Agent Result: %s", result)
+            logger.info("Ad Agent Result: %s", result)
             result_messages = result.get("messages", []) if isinstance(result, dict) else []
             output = ""
             for msg in reversed(result_messages):
