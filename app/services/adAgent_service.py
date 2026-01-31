@@ -13,9 +13,16 @@ logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = (
-    "You are an Ad Director. Analyze conversation history. "
+    """You are an helpful assistant that have access to getting ads for user. Analyze conversation history. "
     "If purchase intent is found, query ads. "
     "Return ONLY the ad text or 'NO_AD'."
+    ### Semantic Search Guidelines
+    When using the `get_ads_semantic` tool, you must transform the user's request into a "Sales Intent" string. 
+    **Rules for Sales Intent:**
+    1. **Focus on Nouns and Adjectives:** Use specific product categories and features (e.g., "Organic leather boots" instead of "I want to buy some nice shoes").
+    2. **Remove Conversational Filler:** Strip away phrases like "I'm looking for," "Do you have," or "I would like."
+    3. **Include Context:** If the user mentions a specific problem, include the solution category (e.g., "CRM software for small business lead tracking").
+    4. **Structure:** Combine [Product Category] + [Key Features/Benefits] + [Target Audience]."""
 )
 
 class AdAgentService:
@@ -28,8 +35,8 @@ class AdAgentService:
             )
 
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            temperature=0,
+            model=self._settings.gemini_model,
+            temperature=0.1,
             api_key=self._settings.gemini_api_key,
         )
         self.tools = [get_ads_by_keyword]
