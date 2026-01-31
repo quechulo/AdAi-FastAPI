@@ -71,7 +71,6 @@ class AdAgentService:
         if isinstance(content, str):
             return content
         if isinstance(content, dict):
-            # Gemini/LangChain parts sometimes look like {"type": "text", "text": "..."}
             for key in ("text", "content", "value"):
                 value = content.get(key)
                 if isinstance(value, str):
