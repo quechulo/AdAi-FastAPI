@@ -51,7 +51,7 @@ async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
         safe_limit = 8
     safe_limit = max(1, min(safe_limit, 20))
 
-    like = f"%{safe_keyword}%"
+    words = safe_keyword.split()
 
     def _query_ads() -> dict[str, Any]:
         # Use the readonly session generator manually since we are outside FastAPI DI
@@ -59,25 +59,16 @@ async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
         session_gen = get_db_session()
         try:
             db = next(session_gen)
-            stmt = (
-                sa.select(Ad)
-                .where(
-                    sa.or_(
-                        Ad.title.ilike(like),
-                        Ad.description.ilike(like),
-                        Ad.keywords.any(safe_keyword),
-                    )
-                )
-                .order_by(Ad.id.asc())
-                .limit(safe_limit)
-            )
+            # Improved query: search for ANY of the words provided
+            conditions = []
+            for word in words:
+                like = f"%{word}%"
+                conditions.append(Ad.title.ilike(like))
+                conditions.append(Ad.description.ilike(like))
+            
+            stmt = sa.select(Ad).where(sa.or_(*conditions)).limit(safe_limit)
             ads = db.execute(stmt).scalars().all()
-
-            return {
-                "keyword": safe_keyword,
-                "count": len(ads),
-                "ads": [_ad_to_payload(a) for a in ads],
-            }
+            return {"count": len(ads), "ads": [_ad_to_payload(a) for a in ads]}
         finally:
             session_gen.close()
     tool_result = await anyio.to_thread.run_sync(_query_ads)
