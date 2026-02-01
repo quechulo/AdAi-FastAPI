@@ -18,9 +18,12 @@ def _build_embedding_text(ad: Ad) -> str:
     keywords = ad.keywords or []
     keywords_text = ", ".join(keywords) if keywords else ""
 
-    parts: list[str] = [f"Title: {ad.title}", f"Description: {ad.description}"]
+    parts: list[str] = [f"Ad Title: {ad.title}", f"Ad Description: {ad.description}"]
     if keywords_text:
-        parts.append(f"Keywords: {keywords_text}")
+        parts.append(f"Ad Keywords: {keywords_text}")
+
+    parts.insert(0, "Type: Advertisement/Commercial Offer")
+
     return "\n".join(parts)
 
 
