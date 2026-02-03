@@ -11,12 +11,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 @router.post("/agentic-chat")
 async def chat_agentic(
     request: ChatRequest,
     gemini_service: GeminiService = Depends(get_gemini_service),
     ad_agent_service: AdAgentService = Depends(get_agentic_service),
-    ):
+):
     """
     Orchestrates the conversation:
     1. Parses History
@@ -49,4 +50,7 @@ async def chat_agentic(
         }
     except Exception as e:
         logger.exception("Agentic chat endpoint failed")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {e}"
+            )
