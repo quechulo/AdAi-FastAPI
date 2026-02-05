@@ -5,7 +5,9 @@ from decimal import Decimal
 
 from sqlalchemy import (
     ARRAY,
+    Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     Numeric,
@@ -14,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pgvector.sqlalchemy import Vector
@@ -150,3 +153,28 @@ class Campaign(Base):
             return False
 
         return True
+
+
+class ChatSession(Base):
+    """Store immutable snapshots of complete chat conversations."""
+
+    __tablename__ = "chat_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    
+    mode: Mapped[str] = mapped_column(Text, nullable=False)
+    
+    # JSONB array of message objects with structure:
+    # [{role: str, parts: list[str], generation_time: float,
+    # used_tokens: int}, ...]
+    history: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    
+    version: Mapped[float | None] = mapped_column(Float)
+    
+    helpful: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )

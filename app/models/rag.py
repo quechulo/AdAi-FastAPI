@@ -35,4 +35,6 @@ class RagCitation(BaseModel):
 
 class RagResponse(BaseModel):
     response: str
+    generation_time: float = 0.0
+    used_tokens: int = 0
     citations: list[RagCitation] = Field(default_factory=list)

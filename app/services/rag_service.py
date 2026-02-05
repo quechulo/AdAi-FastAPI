@@ -55,8 +55,15 @@ class RagService:
             query_embedding = await self._gemini.embed_text(message)
         except Exception:
             logger.exception("RAG: failed to embed query; falling back to generic answer")
-            response_text = await self._gemini.generate_chat_response(message=message, history=history)
-            return RagResponse(response=response_text, citations=[])
+            response_text, generation_time, used_tokens = await self._gemini.generate_chat_response(
+                message=message, history=history
+            )
+            return RagResponse(
+                response=response_text,
+                generation_time=generation_time,
+                used_tokens=used_tokens,
+                citations=[],
+            )
 
         # 2) Retrieve similar ads
         repo = AdsVectorRepository(self._db)
@@ -64,8 +71,15 @@ class RagService:
 
         # 3) Fallback when nothing relevant is found
         if not matches:
-            response_text = await self._gemini.generate_chat_response(message=message, history=history)
-            return RagResponse(response=response_text, citations=[])
+            response_text, generation_time, used_tokens = await self._gemini.generate_chat_response(
+                message=message, history=history
+            )
+            return RagResponse(
+                response=response_text,
+                generation_time=generation_time,
+                used_tokens=used_tokens,
+                citations=[],
+            )
 
         # 4) Build context + citations payload
         context_lines: list[str] = []
@@ -96,6 +110,13 @@ class RagService:
         rag_message = _RAG_PROMPT.format(question=message, context=context)
 
         # 5) Generate grounded answer
-        response_text = await self._gemini.generate_chat_response(message=rag_message, history=history)
+        response_text, generation_time, used_tokens = await self._gemini.generate_chat_response(
+            message=rag_message, history=history
+        )
 
-        return RagResponse(response=response_text, citations=citations)
+        return RagResponse(
+            response=response_text,
+            generation_time=generation_time,
+            used_tokens=used_tokens,
+            citations=citations,
+        )

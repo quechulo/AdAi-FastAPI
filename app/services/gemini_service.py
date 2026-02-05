@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+import time
 
 from google import genai
 from google.genai import types
@@ -42,17 +43,30 @@ class GeminiService:
             types.Content(role="user", parts=[types.Part.from_text(text=message)])
         )
 
-        def _send() -> str:
+        def _send() -> tuple[str, float, int]:
+            # Measure generation time
+            start_time = time.perf_counter()
+            
             response = self._client.models.generate_content(
                 model=self._settings.gemini_model,
                 contents=contents,
             )
+            
+            end_time = time.perf_counter()
+            generation_time = end_time - start_time
+            
+            # Extract token usage
+            used_tokens = 0
+            if hasattr(response, "usage_metadata") and response.usage_metadata:
+                used_tokens = getattr(
+                    response.usage_metadata, "total_token_count", 0
+                )
+            
 
-            # google-genai responses typically expose aggregated text via `.text`.
             text = getattr(response, "text", None)
             if isinstance(text, str) and text.strip():
-                return text
-            return str(response)
+                return text, generation_time, used_tokens
+            return str(response), generation_time, used_tokens
 
         try:
             return await asyncio.to_thread(_send)
