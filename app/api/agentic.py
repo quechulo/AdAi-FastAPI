@@ -11,12 +11,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 @router.post("/agentic-chat")
 async def chat_agentic(
     request: ChatRequest,
     gemini_service: GeminiService = Depends(get_gemini_service),
     ad_agent_service: AdAgentService = Depends(get_agentic_service),
-    ):
+):
     """
     Orchestrates the conversation:
     1. Parses History
@@ -34,9 +35,9 @@ async def chat_agentic(
             latest_message=request.message,
         )
 
-        chat_response_text, ad_response_text = await asyncio.gather(chat_task, ad_task)
+        chat_response, ad_response_text = await asyncio.gather(chat_task, ad_task)
 
-        final_response = chat_response_text
+        final_response = chat_response.text
         if ad_response_text:
             final_response += (
                 "\n\n----------------\nSponsored Suggestion:\n"
@@ -45,8 +46,13 @@ async def chat_agentic(
 
         return {
             "response": final_response,
+            "generation_time": chat_response.generation_time,
+            "used_tokens": chat_response.used_tokens,
             "metadata": {"ad_injected": bool(ad_response_text)},
         }
     except Exception as e:
         logger.exception("Agentic chat endpoint failed")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {e}"
+            )

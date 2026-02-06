@@ -12,6 +12,7 @@ from app.db.session import get_db_session
 from app.services.gemini_service import GeminiService
 from app.services.rag_service import RagService
 from app.services.adAgent_service import AdAgentService
+from app.services.save_chat_service import SaveChatService
 
 
 @lru_cache
@@ -27,13 +28,23 @@ def get_rag_service(
     db: Session = Depends(get_db),
     gemini_service: GeminiService = Depends(get_gemini_service),
 ) -> RagService:
-    return RagService(db=db, gemini_service=gemini_service, settings=get_settings())
+    return RagService(
+        db=db, gemini_service=gemini_service, settings=get_settings()
+    )
+
 
 def get_agentic_service(
-    #gemini_service: GeminiService = Depends(get_gemini_service),
+    # gemini_service: GeminiService = Depends(get_gemini_service),
 ) -> AdAgentService:
     try:
         return AdAgentService(settings=get_settings())
     except RuntimeError as e:
-        # Misconfiguration (missing Gemini key) should be explicit for API clients.
+        # Misconfiguration (missing Gemini key) should be explicit
+        # for API clients.
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def get_save_chat_service(
+    db: Session = Depends(get_db),
+) -> SaveChatService:
+    return SaveChatService(db=db)

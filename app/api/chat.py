@@ -17,11 +17,19 @@ async def chat_endpoint(
     gemini_service: GeminiService = Depends(get_gemini_service),
 ) -> ChatResponse:
     try:
-        response_text = await gemini_service.generate_chat_response(
+        (
+            response_text,
+            generation_time,
+            used_tokens,
+        ) = await gemini_service.generate_chat_response(
             message=request.message,
             history=request.history,
         )
-        return ChatResponse(response=response_text)
+        return ChatResponse(
+            response=response_text,
+            generation_time=generation_time,
+            used_tokens=used_tokens,
+        )
     except Exception as e:
         logger.exception("Chat endpoint failed")
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
