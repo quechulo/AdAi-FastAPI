@@ -18,15 +18,15 @@ async def save_chat_history(
 ) -> SaveChatResponse:
     """
     Save a complete chat session snapshot.
-    
+
     This endpoint persists an immutable snapshot of a chat conversation
     when the user starts a new conversation. Sessions are never edited
     after creation.
-    
+
     Args:
         request: Chat session data with mode, history, and optional version
         save_chat_service: Injected service for database operations
-        
+ 
     Returns:
         SaveChatResponse with session ID and metadata
     """
@@ -36,7 +36,7 @@ async def save_chat_history(
                 status_code=400,
                 detail="Chat history cannot be empty"
             )
-        
+
         if request.mode not in {"basic", "rag", "mcp", "agent"}:
             raise HTTPException(
                 status_code=400,
@@ -45,17 +45,17 @@ async def save_chat_history(
                     "Must be one of: basic, rag, mcp, agent"
                 ),
             )
-        
+
         response = save_chat_service.save_session(
             mode=request.mode,
             history=request.history,
             version=request.version,
             helpful=request.helpful,
         )
-        
+
         logger.info(f"Successfully saved chat session {response.id}")
         return response
-        
+
     except HTTPException as e:
         raise e
     except Exception as e:

@@ -24,4 +24,7 @@ async def rag_endpoint(
         )
     except Exception as e:
         logger.exception("RAG endpoint failed")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {e}"
+            )

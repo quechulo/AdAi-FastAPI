@@ -27,7 +27,8 @@ from app.db.base import Base
 class DocumentEmbedding(Base):
     """Example pgvector-backed embedding table.
 
-    Keep this as a starting point; for production, you typically add tenant keys,
+    Keep this as a starting point; for production,
+    you typically add tenant keys,
     created_at/updated_at timestamps, and metadata fields.
     """
 
@@ -36,7 +37,8 @@ class DocumentEmbedding(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # NOTE: pgvector requires a fixed dimension. Update the number to match your embedding model.
+    # NOTE: pgvector requires a fixed dimension.
+    # Update the number to match your embedding model.
     embedding: Mapped[list[float]] = mapped_column(Vector(768), nullable=False)
 
 
@@ -51,7 +53,11 @@ class Ad(Base):
     url: Mapped[str] = mapped_column(Text, nullable=False)
     image_url: Mapped[str | None] = mapped_column(Text)
 
-    cpc: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False, server_default="0.00")
+    cpc: Mapped[float] = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
+        server_default="0.00"
+        )
     embedding: Mapped[list[float] | None] = mapped_column(Vector(768))
 
     created_at: Mapped[datetime] = mapped_column(
@@ -81,10 +87,17 @@ class AdCampaign(Base):
         ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False
     )
 
-    click_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    click_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default="0"
+        )
 
     ad: Mapped[Ad] = relationship("Ad", back_populates="campaign_links")
-    campaign: Mapped["Campaign"] = relationship("Campaign", back_populates="ad_links")
+    campaign: Mapped["Campaign"] = relationship(
+        "Campaign",
+        back_populates="ad_links"
+        )
 
 
 class Campaign(Base):
@@ -143,7 +156,8 @@ class Campaign(Base):
 
         # 3) Budget
         # SQLAlchemy Numeric typically yields Decimal; keep comparisons stable.
-        budget = self.budget if isinstance(self.budget, Decimal) else Decimal(str(self.budget))
+        budget = self.budget if isinstance(self.budget, Decimal) \
+            else Decimal(str(self.budget))
         spending = (
             self.spending
             if isinstance(self.spending, Decimal)
@@ -161,20 +175,20 @@ class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    
+
     mode: Mapped[str] = mapped_column(Text, nullable=False)
-    
+
     # JSONB array of message objects with structure:
     # [{role: str, parts: list[str], generation_time: float,
     # used_tokens: int}, ...]
     history: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    
+
     version: Mapped[float | None] = mapped_column(Float)
-    
+
     helpful: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
     )
