@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 from sqlalchemy.orm import Session, joinedload
-from app.db.models import Ad
+from app.db.models import Ad, AdCampaign
 from app.db.session import get_sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class ViewAdService:
             # Load ad with campaign_links and nested campaign relationship
             ad = db.query(Ad).options(
                 joinedload(Ad.campaign_links).joinedload(
-                    "campaign"
+                    AdCampaign.campaign
                 )
             ).filter(Ad.id == ad_id).first()
 
