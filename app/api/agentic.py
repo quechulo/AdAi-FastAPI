@@ -35,7 +35,10 @@ async def chat_agentic(
             latest_message=request.message,
         )
 
-        chat_response, ad_response_text = await asyncio.gather(chat_task, ad_task)
+        chat_response, ad_response_text = await asyncio.gather(
+            chat_task,
+            ad_task
+        )
 
         final_response = chat_response["response"]
         if ad_response_text:
@@ -55,5 +58,6 @@ async def chat_agentic(
         print(e)
         raise HTTPException(
             status_code=e.__dict__.get("code", 500),
-            detail=f"Internal server error: {e.__dict__.get('message', str(e))}"
+            detail=f"Internal server error:\
+                {e.__dict__.get('message', str(e))}"
             )
