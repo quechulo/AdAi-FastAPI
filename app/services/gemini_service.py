@@ -71,8 +71,8 @@ class GeminiService:
 
             text = getattr(response, "text", None)
             if isinstance(text, str) and text.strip():
-                return text, generation_time, used_tokens
-            return str(response), generation_time, used_tokens
+                return {"response": text, "generation_time": generation_time, "used_tokens": used_tokens}
+            return {"response": str(response), "generation_time": generation_time, "used_tokens": used_tokens}
 
         try:
             return await asyncio.to_thread(_send)
