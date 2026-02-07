@@ -26,7 +26,11 @@ class GeminiService:
         # Ref: https://pypi.org/project/google-genai/
         self._client = genai.Client(api_key=self._settings.gemini_api_key)
 
-    async def generate_chat_response(self, message: str, history: list[ChatMessage]):
+    async def generate_chat_response(
+            self,
+            message: str,
+            history: list[ChatMessage]
+            ):
         contents: list[types.Content] = []
 
         for msg in history:
@@ -40,28 +44,30 @@ class GeminiService:
             contents.append(types.Content(role=role, parts=parts))
 
         contents.append(
-            types.Content(role="user", parts=[types.Part.from_text(text=message)])
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=message)]
+            )
         )
 
         def _send() -> tuple[str, float, int]:
             # Measure generation time
             start_time = time.perf_counter()
-            
+
             response = self._client.models.generate_content(
                 model=self._settings.gemini_model,
                 contents=contents,
             )
-            
+
             end_time = time.perf_counter()
             generation_time = end_time - start_time
-            
+
             # Extract token usage
             used_tokens = 0
             if hasattr(response, "usage_metadata") and response.usage_metadata:
                 used_tokens = getattr(
                     response.usage_metadata, "total_token_count", 0
                 )
-            
 
             text = getattr(response, "text", None)
             if isinstance(text, str) and text.strip():
@@ -97,7 +103,9 @@ class GeminiService:
 
             embeddings = getattr(response, "embeddings", None)
             if embeddings is None:
-                raise RuntimeError("Gemini embed_content returned no embeddings")
+                raise RuntimeError(
+                    "Gemini embed_content returned no embeddings"
+                )
 
             vectors: list[list[float]] = []
             for emb in embeddings:
@@ -107,7 +115,8 @@ class GeminiService:
                 vec = [float(x) for x in values]
                 if len(vec) != expected_dim:
                     raise ValueError(
-                        f"Embedding dimension mismatch: got {len(vec)} expected {expected_dim}"
+                        f"Embedding dimension mismatch: got {len(vec)}\
+                        expected {expected_dim}"
                     )
                 if not all(math.isfinite(x) for x in vec):
                     raise ValueError("Embedding contains non-finite values")
@@ -115,7 +124,8 @@ class GeminiService:
 
             if len(vectors) != len(texts):
                 raise RuntimeError(
-                    f"Gemini embeddings count mismatch: got {len(vectors)} expected {len(texts)}"
+                    f"Gemini embeddings count mismatch: got {len(vectors)}\
+                    expected {len(texts)}"
                 )
             return vectors
 
