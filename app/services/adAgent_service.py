@@ -13,17 +13,26 @@ logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = (
-    """You are an helpful assistant that have access to getting ads for user. Analyze conversation history. "
+    """You are an helpful assistant that have access to getting ads for user.
+    Analyze conversation history. "
     "If purchase intent is found, query ads. "
     "Return ONLY the ad text or 'NO_AD'."
     ### Semantic Search Guidelines
-    When using the `get_ads_semantic` tool, you must transform the user's request into a "Sales Intent" string. 
+    When using the `get_ads_semantic` tool, you must transform
+    the user's request into a "Sales Intent" string.
     **Rules for Sales Intent:**
-    1. **Focus on Nouns and Adjectives:** Use specific product categories and features (e.g., "Organic leather boots" instead of "I want to buy some nice shoes").
-    2. **Remove Conversational Filler:** Strip away phrases like "I'm looking for," "Do you have," or "I would like."
-    3. **Include Context:** If the user mentions a specific problem, include the solution category (e.g., "CRM software for small business lead tracking").
-    4. **Structure:** Combine [Product Category] + [Key Features/Benefits] + [Target Audience]."""
+    1. **Focus on Nouns and Adjectives:**
+    Use specific product categories and features
+    (e.g., "Organic leather boots" instead of "I want to buy some nice shoes").
+    2. **Remove Conversational Filler:**
+    Strip away phrases like "I'm looking for," "Do you have," or "I would like"
+    3. **Include Context:**
+    If the user mentions a specific problem, include the solution category
+    (e.g., "CRM software for small business lead tracking").
+    4. **Structure:**
+    Combine [Product Category] + [Key Features/Benefits] + [Target Audience]"""
 )
+
 
 class AdAgentService:
     def __init__(self, *, settings: Settings | None = None):
@@ -31,7 +40,8 @@ class AdAgentService:
 
         if not self._settings.gemini_api_key:
             raise RuntimeError(
-                "Gemini API key is not configured. Set GEMINI_API_KEY or GOOGLE_API_KEY."
+                """Gemini API key is not configured.
+                Set GEMINI_API_KEY or GOOGLE_API_KEY."""
             )
 
         self.llm = ChatGoogleGenerativeAI(
@@ -42,11 +52,18 @@ class AdAgentService:
         self.tools = [get_ads_by_keyword]
 
         # Note: langchain.agents.create_agent does not accept a PromptTemplate;
-        # it accepts a `system_prompt` which will be prepended as a SystemMessage.
-        self.agent = create_agent(self.llm, self.tools, system_prompt=SYSTEM_PROMPT)
+        # it accepts a `system_prompt`
+        # which will be prepended as a SystemMessage.
+        self.agent = create_agent(
+            self.llm,
+            self.tools,
+            system_prompt=SYSTEM_PROMPT
+        )
 
     @staticmethod
-    def _to_lc_messages(history: list[ChatMessage] | list[BaseMessage]) -> list[BaseMessage]:
+    def _to_lc_messages(
+        history: list[ChatMessage] | list[BaseMessage]
+    ) -> list[BaseMessage]:
         if not history:
             return []
         first = history[0]
@@ -86,7 +103,9 @@ class AdAgentService:
         return str(content)
 
     async def analyze_and_get_ad(
-        self, history: list[ChatMessage] | list[BaseMessage], latest_message: str
+        self,
+        history: list[ChatMessage] | list[BaseMessage],
+        latest_message: str
     ) -> str | None:
         """
         Returns the ad text string if found, or None.
@@ -94,24 +113,35 @@ class AdAgentService:
         """
         try:
             lc_history = self._to_lc_messages(history)
-            messages: list[BaseMessage] = [*lc_history, HumanMessage(content=latest_message)]
+            messages: list[BaseMessage] = [
+                *lc_history,
+                HumanMessage(content=latest_message)
+            ]
             result = await self.agent.ainvoke({"messages": messages})
 
             print("----------Ad Agent Result--------------")
             print("Ad Agent Result:", result)
             logger.info("Ad Agent Result: %s", result)
-            result_messages = result.get("messages", []) if isinstance(result, dict) else []
+            result_messages = (
+                result.get("messages", [])
+                if isinstance(result, dict)
+                else []
+            )
             output = ""
             for msg in reversed(result_messages):
                 if isinstance(msg, AIMessage):
-                    candidate = self._content_to_text(getattr(msg, "content", None)).strip()
+                    candidate = self._content_to_text(
+                        getattr(msg, "content", None)
+                    ).strip()
                     if candidate:
                         output = candidate
                         break
                 if isinstance(msg, dict):
                     role = (msg.get("role") or "").lower()
                     if role in {"assistant", "ai"}:
-                        candidate = self._content_to_text(msg.get("content")).strip()
+                        candidate = self._content_to_text(
+                            msg.get("content")
+                        ).strip()
                         if candidate:
                             output = candidate
                             break
@@ -120,6 +150,8 @@ class AdAgentService:
             if not cleaned:
                 return None
             return None if cleaned.upper() == "NO_AD" else cleaned
-        except Exception:
-            logger.exception("AdAgentService failed while analyzing and fetching ad")
-            return None
+        except Exception as e:
+            logger.exception(
+                "AdAgentService failed while analyzing and fetching ad"
+            )
+            raise e
