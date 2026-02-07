@@ -25,6 +25,7 @@ SYSTEM_PROMPT = (
     4. **Structure:** Combine [Product Category] + [Key Features/Benefits] + [Target Audience]."""
 )
 
+
 class AdAgentService:
     def __init__(self, *, settings: Settings | None = None):
         self._settings = settings or get_settings()
@@ -120,6 +121,8 @@ class AdAgentService:
             if not cleaned:
                 return None
             return None if cleaned.upper() == "NO_AD" else cleaned
-        except Exception:
-            logger.exception("AdAgentService failed while analyzing and fetching ad")
-            return None
+        except Exception as e:
+            logger.exception(
+                "AdAgentService failed while analyzing and fetching ad"
+            )
+            raise e
