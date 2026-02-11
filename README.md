@@ -67,7 +67,7 @@ python -m app.scripts.fill_ads_embeddings
 
 Variables from `env-model` that are currently used:
 ```zsh
-GEMINI_EMBEDDING_MODEL=text-embedding-004
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 GEMINI_EMBEDDING_DIM=768
 ```
 
