@@ -24,7 +24,9 @@ async def rag_endpoint(
         )
     except Exception as e:
         logger.exception("RAG endpoint failed")
+        print(e)
         raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {e}"
+            status_code=e.__dict__.get("code", 500),
+            detail=f"Internal server error:\
+                {e.__dict__.get('message', str(e))}"
             )
