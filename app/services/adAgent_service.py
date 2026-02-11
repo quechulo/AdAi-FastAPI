@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -7,6 +9,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from app.core.settings import Settings, get_settings
 from app.mcp.server import get_ads_by_keyword
 from app.models.chat import ChatMessage
+from app.services.agent_metrics_callback import MetricsCallbackHandler
 import logging
 
 logger = logging.getLogger(__name__)
@@ -106,18 +109,31 @@ class AdAgentService:
         self,
         history: list[ChatMessage] | list[BaseMessage],
         latest_message: str
-    ) -> str | None:
+    ) -> dict[str, Any]:
         """
-        Returns the ad text string if found, or None.
-        Does NOT handle sending the message to the user.
+        Analyzes conversation for purchase intent and retrieves relevant ads.
+
+        Returns:
+            dict with keys:
+                - ad_text: str | None - The ad text if found, or None
+                - generation_time: float - Time spent in LLM calls (seconds)
+                - used_tokens: int - Total tokens consumed across all LLM calls
         """
+        # Initialize metrics tracking callback
+        metrics_callback = MetricsCallbackHandler()
+
         try:
             lc_history = self._to_lc_messages(history)
             messages: list[BaseMessage] = [
                 *lc_history,
                 HumanMessage(content=latest_message)
             ]
-            result = await self.agent.ainvoke({"messages": messages})
+
+            # Execute agent with metrics tracking
+            result = await self.agent.ainvoke(
+                {"messages": messages},
+                config={"callbacks": [metrics_callback]}
+            )
 
             print("----------Ad Agent Result--------------")
             print("Ad Agent Result:", result)
@@ -147,11 +163,34 @@ class AdAgentService:
                             break
 
             cleaned = output.strip().strip('"\'')
-            if not cleaned:
-                return None
-            return None if cleaned.upper() == "NO_AD" else cleaned
-        except Exception as e:
+            ad_text = (
+                None
+                if (not cleaned or cleaned.upper() == "NO_AD")
+                else cleaned
+            )
+
+            # Extract metrics from callback
+            metrics = metrics_callback.get_metrics()
+
+            logger.info(
+                f"Ad agent completed: {metrics['llm_call_count']} LLM calls, "
+                f"{metrics['total_tokens']} tokens, "
+                f"{metrics['generation_time']:.3f}s"
+            )
+
+            return {
+                "ad_text": ad_text,
+                "generation_time": metrics["generation_time"],
+                "used_tokens": metrics["total_tokens"],
+            }
+        except Exception:
             logger.exception(
                 "AdAgentService failed while analyzing and fetching ad"
             )
-            raise e
+            # Return metrics even on error
+            metrics = metrics_callback.get_metrics()
+            return {
+                "ad_text": None,
+                "generation_time": metrics["generation_time"],
+                "used_tokens": metrics["total_tokens"],
+            }
