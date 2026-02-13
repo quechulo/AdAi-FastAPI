@@ -40,13 +40,15 @@ async def chat_agentic(
             ad_task
         )
 
+        response, chat_generation_time, chat_used_tokens = chat_response
+
         # Extract ad text and metrics from ad agent response
         ad_text = ad_response.get("ad_text")
         ad_generation_time = ad_response.get("generation_time", 0.0)
         ad_used_tokens = ad_response.get("used_tokens", 0)
 
         # Build final response with merged content
-        final_response = chat_response["response"]
+        final_response = response
         if ad_text:
             final_response += (
                 "\n\n----------------\nSponsored Suggestion:\n"
@@ -54,9 +56,9 @@ async def chat_agentic(
             )
 
         total_generation_time = (
-            max(chat_response["generation_time"], ad_generation_time)
+            max(chat_generation_time, ad_generation_time)
         )
-        total_used_tokens = chat_response["used_tokens"] + ad_used_tokens
+        total_used_tokens = chat_used_tokens + ad_used_tokens
 
         return AgenticChatResponse(
             response=final_response,
@@ -66,8 +68,8 @@ async def chat_agentic(
             ad_used_tokens=ad_used_tokens,
             metadata={
                 "ad_injected": bool(ad_text),
-                "chat_generation_time": chat_response["generation_time"],
-                "chat_used_tokens": chat_response["used_tokens"],
+                "chat_generation_time": chat_generation_time,
+                "chat_used_tokens": chat_used_tokens,
             },
         )
     except Exception as e:
