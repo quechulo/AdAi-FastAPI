@@ -20,6 +20,13 @@ class ChatResponse(BaseModel):
     used_tokens: int = 0
 
 
+class AgenticChatResponse(ChatResponse):
+    """Extended chat response with ad agent metrics breakdown."""
+    ad_generation_time: float = 0.0
+    ad_used_tokens: int = 0
+    metadata: dict = Field(default_factory=dict)
+
+
 class ChatMessageWithMetadata(BaseModel):
     """Extended chat message with generation metadata."""
     role: str

@@ -4,6 +4,7 @@ import asyncio
 import logging
 from typing import Iterable
 
+import typer
 from sqlalchemy import select
 
 from app.core.settings import get_settings
@@ -31,10 +32,12 @@ def _chunked(items: list[Ad], size: int) -> Iterable[list[Ad]]:
     if size <= 0:
         raise ValueError("batch size must be positive")
     for i in range(0, len(items), size):
-        yield items[i : i + size]
+        yield items[i: i + size]
 
 
-async def run_backfill(*, fetch_size: int = 200, embed_batch_size: int = 32) -> int:
+async def run_backfill(
+    *, fetch_size: int = 200, embed_batch_size: int = 32, force: bool = False
+) -> int:
     settings = get_settings()
 
     logging.basicConfig(
@@ -48,21 +51,22 @@ async def run_backfill(*, fetch_size: int = 200, embed_batch_size: int = 32) -> 
     total_updated = 0
     total_skipped = 0
 
+    mode = "ALL ads (force mode)" if force else "only NULL embeddings"
     logger.info(
-        "Starting embeddings backfill (only NULL). model=%s dim=%s",
+        "Starting embeddings backfill (%s). model=%s dim=%s",
+        mode,
         settings.gemini_embedding_model,
         settings.gemini_embedding_dim,
     )
 
     with SessionLocal() as session:
         while True:
+            query = select(Ad).order_by(Ad.id.asc()).limit(fetch_size)
+            if not force:
+                query = query.where(Ad.embedding.is_(None))
+            
             ads: list[Ad] = (
-                session.execute(
-                    select(Ad)
-                    .where(Ad.embedding.is_(None))
-                    .order_by(Ad.id.asc())
-                    .limit(fetch_size)
-                )
+                session.execute(query)
                 .scalars()
                 .all()
             )
@@ -70,7 +74,8 @@ async def run_backfill(*, fetch_size: int = 200, embed_batch_size: int = 32) -> 
             if not ads:
                 break
 
-            logger.info("Fetched %d ads with NULL embedding", len(ads))
+            status = "for processing" if force else "with NULL embedding"
+            logger.info("Fetched %d ads %s", len(ads), status)
 
             for batch in _chunked(ads, embed_batch_size):
                 texts = [_build_embedding_text(ad) for ad in batch]
@@ -81,7 +86,7 @@ async def run_backfill(*, fetch_size: int = 200, embed_batch_size: int = 32) -> 
 
                 for ad, vec in zip(batch, vectors, strict=True):
                     # Defensive: if another process filled it between fetch and update.
-                    if ad.embedding is not None:
+                    if not force and ad.embedding is not None:
                         skipped += 1
                         continue
                     ad.embedding = vec
@@ -107,9 +112,21 @@ async def run_backfill(*, fetch_size: int = 200, embed_batch_size: int = 32) -> 
     return total_updated
 
 
-def main() -> None:
-    asyncio.run(run_backfill())
+app = typer.Typer()
+
+
+@app.command()
+def main(
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Update embeddings for all ads, even if they already have embeddings",
+    ),
+) -> None:
+    """Backfill embeddings for ads in the database."""
+    asyncio.run(run_backfill(force=force))
 
 
 if __name__ == "__main__":
-    main()
+    app()

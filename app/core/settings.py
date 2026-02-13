@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # Embeddings
     # NOTE: DB schema uses Vector(768). Keep these aligned.
     gemini_embedding_model: str = Field(
-        default="text-embedding-004", alias="GEMINI_EMBEDDING_MODEL"
+        default="gemini-embedding-001", alias="GEMINI_EMBEDDING_MODEL"
     )
     gemini_embedding_dim: int = Field(default=768, alias="GEMINI_EMBEDDING_DIM")
 
