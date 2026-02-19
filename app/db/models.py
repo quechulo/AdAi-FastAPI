@@ -24,24 +24,6 @@ from pgvector.sqlalchemy import Vector
 from app.db.base import Base
 
 
-class DocumentEmbedding(Base):
-    """Example pgvector-backed embedding table.
-
-    Keep this as a starting point; for production,
-    you typically add tenant keys,
-    created_at/updated_at timestamps, and metadata fields.
-    """
-
-    __tablename__ = "document_embeddings"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-
-    # NOTE: pgvector requires a fixed dimension.
-    # Update the number to match your embedding model.
-    embedding: Mapped[list[float]] = mapped_column(Vector(768), nullable=False)
-
-
 class Ad(Base):
     __tablename__ = "ads"
 
