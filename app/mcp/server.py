@@ -15,6 +15,13 @@ mcp = FastMCP("AdAI-MCP")
 
 
 def _ad_to_payload(ad: Ad) -> dict[str, Any]:
+    """
+    Convert an Ad ORM model to a dictionary payload.
+
+    Note: Return structure differs between tools:
+    - get_ads_by_keyword: Returns this dict directly in 'ads' array
+    - get_ads_semantic: Wraps this in {'score', 'distance', 'data'} objects
+    """
     cpc = ad.cpc
     if isinstance(cpc, Decimal):
         cpc_out: str | float = str(cpc)
@@ -32,14 +39,30 @@ def _ad_to_payload(ad: Ad) -> dict[str, Any]:
     }
 
 
-@mcp.tool(description="Search ads by a keyword in title/description/keywords. Returns a small bounded list.")
+@mcp.tool(description="Fast exact-match search for ads by keyword. Use when user mentions specific product names, brands, or short search terms (1-3 words). Performs full text search in title/description/keywords.")
 async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
     """
-    Search ads by a given keyword in title/description/keywords of ad. Returns a small bounded list.
+    Fast keyword-based search using exact substring matching (SQL LIKE).
+    Best for specific product names, brands, or categorical terms.
+
+    Use this tool when:
+    - User mentions specific product/brand names (e.g., "MacBook Pro", "Nike")
+    - Query is 1-3 words (e.g., "wireless headphones", "laptop")
+    - Looking for exact term matches
+
+    Examples:
+    - "MacBook Pro" → finds ads containing "MacBook Pro"
+    - "wireless headphones" → finds ads with both "wireless" AND/OR "headphones"
+    - "Nike running shoes" → finds ads matching any of these terms
+
+    Performance: Fast, immediate results (no embedding required).
 
     Args:
-        keyword: Keyword or phrase to search for.
+        keyword: Keyword or phrase to search for (will be split into words).
         limit: Max number of ads to return (1-20). Default 8.
+   
+    Returns:
+        {"count": int, "ads": [{"id", "title", "description", "keywords", "url", "image_url", "cpc"}]}
     """
     # Enforce safe limits (match previous chained-tool behavior)
     safe_keyword = str(keyword).strip()
@@ -78,20 +101,42 @@ async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
     return tool_result
 
 
-@mcp.tool(description="Search ads semantically based on a sales intent or product description.")
-async def get_ads_semantic(sales_intent: str, limit: int = 5) -> dict[str, Any]:
+@mcp.tool(description="Semantic search for ads using AI embeddings. Use when user describes needs, requirements, or problems with multiple attributes. Finds conceptually similar ads even with different wording.")
+async def get_ads_semantic(search_query: str, limit: int = 5) -> dict[str, Any]:
     """
-    Perform a semantic/vector search for ads. Best for broad needs or descriptive queries.
+    Semantic/vector similarity search using AI embeddings (cosine distance).
+    Best for descriptive queries with multiple attributes or requirements.
+
+    Use this tool when:
+    - User describes needs/problems rather than specific products
+    - Query contains multiple attributes or requirements
+    - Query is a descriptive sentence/phrase (5+ words)
+    - Need conceptual similarity, not exact term matching
+
+    Examples:
+    - "laptop for gaming under $1000" → finds gaming laptops in budget range
+    - "headphones for noisy office environment" → finds noise-canceling headphones
+    - "CRM software for small business lead tracking" → finds relevant CRM solutions
+
+    Query should be distilled (remove conversational filler like "I'm looking for", "Do you have").
+    Focus on: [Product Category] + [Key Features/Benefits] + [Target Audience]
+
+    Performance: Slower than keyword search (requires embedding API call) but finds 
+    conceptually similar results even with different terminology.
 
     Args:
-        sales_intent: A distilled description of the product, features, and audience.
-        limit: Max number of ads to return (1-10).
+        search_query: Descriptive query about product needs, features, and context.
+        limit: Max number of ads to return (1-10). Default 5.
+
+    Returns:
+        {"query_intent": str, "count": int, "ads": [{"score", "distance", "data": {...}}]}
+        where score is cosine similarity (higher=better) and distance is cosine distance (lower=better).
     """
     settings = get_settings()
     try:
         # Using GeminiService to embed the query string
         gemini = GeminiService(settings=settings)
-        query_embedding = await gemini.embed_text(sales_intent)
+        query_embedding = await gemini.embed_text(search_query)
     except Exception as e:
         return {"error": f"Failed to embed query: {str(e)}"}
 
@@ -107,7 +152,7 @@ async def get_ads_semantic(sales_intent: str, limit: int = 5) -> dict[str, Any]:
             )
 
             return {
-                "query_intent": sales_intent,
+                "query_intent": search_query,
                 "count": len(matches),
                 "ads": [
                     {
