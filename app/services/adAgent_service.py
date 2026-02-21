@@ -50,7 +50,14 @@ SYSTEM_PROMPT = (
     **Decision Priority:**
     - If query is 1-3 words → use keyword search (faster)
     - If query is descriptive/multi-attribute → use semantic search (better relevance)
-    - When uncertain, prefer semantic search for better results"""
+    - When uncertain, prefer semantic search for better results
+    
+    ### Response Formatting
+    
+    When including ad URLs in your response, always format them as Markdown links:
+    - Use format: [descriptive text](url)
+    - Examples: [View Product](url), [See Details](url), or [Product Title](url)
+    - Choose descriptive text that fits the context naturally"""
 )
 
 

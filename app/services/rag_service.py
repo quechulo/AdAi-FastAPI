@@ -21,6 +21,7 @@ Rules:
 - Use ONLY the provided ads as factual sources.
 - If none of the ads are relevant, do not provide any ads.
 - Do not invent ad URLs, titles, or claims not present in the ads.
+- When mentioning ads, format URLs as clickable Markdown links: [ad title](url) or [View Details](url)
 
 User query:
 {question}
