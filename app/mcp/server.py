@@ -7,7 +7,7 @@ from app.db.retrieval import AdsVectorRepository
 from app.services.gemini_service import GeminiService
 from typing import Any
 from decimal import Decimal
-from app.db.models import Ad
+from app.db.models import Ad, AdCampaign, Campaign
 
 
 # Initialize the MCP Server
@@ -91,7 +91,17 @@ async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
                 conditions.append(Ad.title.match(like))
                 conditions.append(Ad.description.match(like))
 
-            stmt = sa.select(Ad).where(sa.or_(*conditions)).limit(safe_limit)
+            stmt = (
+                sa.select(Ad)
+                .join(AdCampaign, Ad.id == AdCampaign.ad_id)
+                .join(Campaign, AdCampaign.campaign_id == Campaign.id)
+                .where(
+                    sa.or_(*conditions),
+                    Campaign.is_running
+                )
+                .distinct()
+                .limit(safe_limit)
+            )
             ads = db.execute(stmt).scalars().all()
             return {"count": len(ads), "ads": [_ad_to_payload(a) for a in ads]}
         finally:

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
-from app.db.models import Ad
+from app.db.models import Ad, AdCampaign, Campaign
 
 
 @dataclass(frozen=True)
@@ -33,7 +33,13 @@ class AdsVectorRepository:
 
         stmt = (
             sa.select(Ad, score_expr, distance_labeled)
-            .where(Ad.embedding.is_not(None))
+            .join(AdCampaign, Ad.id == AdCampaign.ad_id)
+            .join(Campaign, AdCampaign.campaign_id == Campaign.id)
+            .where(
+                Ad.embedding.is_not(None),
+                Campaign.is_running
+            )
+            .distinct()
             .order_by(distance_expr.asc())
             .limit(top_k)
         )
