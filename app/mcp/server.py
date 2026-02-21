@@ -13,6 +13,7 @@ from app.db.models import Ad
 # Initialize the MCP Server
 mcp = FastMCP("AdAI-MCP")
 
+
 def _ad_to_payload(ad: Ad) -> dict[str, Any]:
     cpc = ad.cpc
     if isinstance(cpc, Decimal):
@@ -35,7 +36,7 @@ def _ad_to_payload(ad: Ad) -> dict[str, Any]:
 async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
     """
     Search ads by a given keyword in title/description/keywords of ad. Returns a small bounded list.
-    
+
     Args:
         keyword: Keyword or phrase to search for.
         limit: Max number of ads to return (1-20). Default 8.
@@ -63,9 +64,10 @@ async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
             conditions = []
             for word in words:
                 like = f"%{word}%"
-                conditions.append(Ad.title.ilike(like))
-                conditions.append(Ad.description.ilike(like))
-            
+                conditions.append(Ad.keywords.any(like))
+                conditions.append(Ad.title.match(like))
+                conditions.append(Ad.description.match(like))
+
             stmt = sa.select(Ad).where(sa.or_(*conditions)).limit(safe_limit)
             ads = db.execute(stmt).scalars().all()
             return {"count": len(ads), "ads": [_ad_to_payload(a) for a in ads]}
@@ -75,11 +77,12 @@ async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
 
     return tool_result
 
+
 @mcp.tool(description="Search ads semantically based on a sales intent or product description.")
 async def get_ads_semantic(sales_intent: str, limit: int = 5) -> dict[str, Any]:
     """
     Perform a semantic/vector search for ads. Best for broad needs or descriptive queries.
-    
+
     Args:
         sales_intent: A distilled description of the product, features, and audience.
         limit: Max number of ads to return (1-10).
@@ -99,7 +102,7 @@ async def get_ads_semantic(sales_intent: str, limit: int = 5) -> dict[str, Any]:
             # Utilizing the AdsVectorRepository for semantic retrieval
             repo = AdsVectorRepository(db)
             matches = repo.search_ads_by_embedding(
-                query_embedding=query_embedding, 
+                query_embedding=query_embedding,
                 top_k=max(1, min(limit, 10))
             )
 
@@ -108,8 +111,8 @@ async def get_ads_semantic(sales_intent: str, limit: int = 5) -> dict[str, Any]:
                 "count": len(matches),
                 "ads": [
                     {
-                        "score": m.score, 
-                        "distance": m.distance, 
+                        "score": m.score,
+                        "distance": m.distance,
                         "data": _ad_to_payload(m.ad)
                     } for m in matches
                 ]
