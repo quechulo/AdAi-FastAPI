@@ -14,6 +14,7 @@ from app.services.mcp_client import McpClient
 
 logger = logging.getLogger(__name__)
 
+
 class McpService:
     def __init__(
         self,
@@ -50,20 +51,17 @@ class McpService:
         try:
             # Connect to MCP Session
             async with self._mcp.session() as mcp_session:
-                
+
                 # 2. Discover Tools
                 tools_result = await mcp_session.list_tools()
-                
                 gemini_tools = []
-                tool_names = []
-                
+
                 for t in getattr(tools_result, "tools", []):
                     gemini_tools.append(types.FunctionDeclaration(
                         name=t.name,
                         description=t.description,
                         parameters=t.inputSchema or {"type": "object", "properties": {}}
                     ))
-                    tool_names.append(t.name)
 
                 tool_config = types.ToolConfig(
                     function_calling_config=types.FunctionCallingConfig(
@@ -92,7 +90,7 @@ class McpService:
 
                     # Extract Function Calls
                     function_calls = [
-                        part.function_call for part in cand.content.parts 
+                        part.function_call for part in cand.content.parts
                         if part.function_call is not None
                     ]
 
@@ -105,11 +103,11 @@ class McpService:
                     parts_response = []
                     for call in function_calls:
                         logger.info(f"Step {i+1}: Calling tool {call.name}")
-                        
+
                         try:
                             # Call the tool via MCP
                             result = await mcp_session.call_tool(call.name, arguments=call.args)
-                            
+
                             # Parse result content (MCP returns a list of text/image content)
                             # We flatten it to a single string for the LLM
                             content_text = ""
