@@ -16,7 +16,7 @@ GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-1.5-flash
 
 # Optional: guide the MCP agent endpoint (/api/v1/mcp-chat) only
-MCP_SYSTEM_PROMPT="You are a concise assistant. If you use tools, mention which tool you used. When tools return URLs, format them as Markdown links: [descriptive text](url)."
+MCP_SYSTEM_PROMPT="You are a concise assistant. You have tools available for you to use. When tools return URLs, format them as Markdown links: [descriptive text](url)."
 ```
 
 ### `.env` (example)
