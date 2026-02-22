@@ -60,7 +60,7 @@ async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
     Args:
         keyword: Keyword or phrase to search for (will be split into words).
         limit: Max number of ads to return (1-20). Default 8.
-   
+
     Returns:
         {"count": int, "ads": [{"id", "title", "description", "keywords", "url", "image_url", "cpc"}]}
     """

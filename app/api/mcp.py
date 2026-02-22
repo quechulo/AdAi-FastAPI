@@ -14,12 +14,14 @@ router = APIRouter()
 
 mcp_client_instance = McpClient(server_script_path="app/mcp/server.py")
 
+
 def get_mcp_service():
     settings = get_settings()
     return McpService(
         mcp_client=mcp_client_instance,
         system_prompt=settings.mcp_system_prompt,
     )
+
 
 @router.post("/mcp-chat", response_model=ChatResponse)
 async def mcp_endpoint(
