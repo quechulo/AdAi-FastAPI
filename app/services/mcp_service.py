@@ -119,7 +119,7 @@ class McpService:
                             # Create the function response part
                             parts_response.append(types.Part.from_function_response(
                                 name=call.name,
-                                response={"result": content_text} 
+                                response={"result": content_text}
                             ))
                         except Exception as e:
                             logger.error(f"Tool error: {e}")
