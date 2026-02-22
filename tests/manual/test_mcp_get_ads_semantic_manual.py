@@ -61,14 +61,14 @@ def test_manual_get_ads_semantic_direct() -> None:
     sales_intents = _parse_sales_intents()
     limit = _parse_limit()
 
-    for sales_intent in sales_intents:
-        result = anyio.run(get_ads_semantic, sales_intent, limit)
+    for search_query in sales_intents:
+        result = anyio.run(get_ads_semantic, search_query, limit)
         print("\n=== get_ads_semantic (direct) ===")
-        print(f"sales_intent={sales_intent!r} limit={limit}")
+        print(f"search_query={search_query!r} limit={limit}")
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
 
         assert isinstance(result, dict)
         assert "error" not in result
-        assert result.get("query_intent") == sales_intent
+        assert result.get("query_intent") == search_query
         assert isinstance(result.get("ads"), list)
         assert isinstance(result.get("count"), int)

@@ -14,9 +14,12 @@ from sqlalchemy import (
     SmallInteger,
     Text,
     UniqueConstraint,
+    and_,
     func,
+    or_,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pgvector.sqlalchemy import Vector
@@ -113,8 +116,9 @@ class Campaign(Base):
         passive_deletes=True,
     )
 
-    @property
+    @hybrid_property
     def is_running(self) -> bool:
+        """Check if campaign is running (for Python instance access)."""
         now = datetime.now(timezone.utc)
 
         # 1) Manual switch
@@ -149,6 +153,17 @@ class Campaign(Base):
             return False
 
         return True
+
+    @is_running.expression
+    def is_running(cls):
+        """SQL expression for filtering running campaigns in database queries."""
+        now_func = func.now()
+        return and_(
+            cls.is_enabled == 1,
+            cls.start_date <= now_func,
+            or_(cls.end_date.is_(None), cls.end_date > now_func),
+            cls.spending < cls.budget
+        )
 
 
 class ChatSession(Base):

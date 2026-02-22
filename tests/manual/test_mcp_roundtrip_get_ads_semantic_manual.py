@@ -74,13 +74,13 @@ async def _run_roundtrip() -> None:
         if "get_ads_semantic" not in tool_names:
             raise AssertionError("Tool get_ads_semantic not exposed by MCP server")
 
-        for sales_intent in sales_intents:
+        for search_query in sales_intents:
             print("\n=== get_ads_semantic (MCP roundtrip) ===")
-            print(f"sales_intent={sales_intent!r} limit={limit}")
+            print(f"search_query={search_query!r} limit={limit}")
 
             result = await session.call_tool(
                 "get_ads_semantic",
-                arguments={"sales_intent": sales_intent, "limit": limit},
+                arguments={"search_query": search_query, "limit": limit},
             )
 
             if hasattr(result, "content") and isinstance(result.content, list):
