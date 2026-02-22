@@ -42,7 +42,7 @@ try:
     # Count total ads
     total_ads = db.execute(select(Ad)).scalars().all()
     print(f"  Total ads in database: {len(total_ads)}")
-    
+
     # Count ads with at least one campaign
     ads_with_campaigns = db.execute(
         select(Ad)
@@ -50,7 +50,7 @@ try:
         .distinct()
     ).scalars().all()
     print(f"  Ads with campaigns: {len(ads_with_campaigns)}")
-    
+
     # Count ads with running campaigns (using new filter)
     ads_with_running = db.execute(
         select(Ad)
