@@ -59,4 +59,7 @@ def test_manual_get_ads_by_keyword_direct() -> None:
         print(f"keyword={keyword!r} limit={limit}")
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
         assert isinstance(result, dict)
-        assert result.get("keyword") == keyword
+
+        assert "ads" in result
+        assert "count" in result
+        assert isinstance(result["ads"], list)
