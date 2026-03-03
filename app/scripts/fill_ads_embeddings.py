@@ -64,7 +64,7 @@ async def run_backfill(
             query = select(Ad).order_by(Ad.id.asc()).limit(fetch_size)
             if not force:
                 query = query.where(Ad.embedding.is_(None))
-            
+
             ads: list[Ad] = (
                 session.execute(query)
                 .scalars()
