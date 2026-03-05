@@ -8,10 +8,31 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """
+    Application settings with secure fallback mechanism.
+
+    Configuration Priority (highest to lowest):
+    1. Environment variables (Cloud Run --set-env-vars or system env vars)
+    2. Local .env file (for local development)
+    3. Local .env-model file (for model-specific settings)
+    4. Default values defined in Field()
+
+    In production (Cloud Run):
+    - Environment variables are set via --set-env-vars
+    - Secrets (GEMINI_API_KEY, DATABASE_URL) are set via --set-secrets
+    - .env files are NOT included in the Docker image
+
+    In local development:
+    - Create .env and .env-model files (see .env.example)
+    - These files are ignored by git and Docker
+    """
     model_config = SettingsConfigDict(
         env_file=(".env", ".env-model"),
         env_file_encoding="utf-8",
         extra="ignore",
+        # Environment variables take precedence over .env files
+        env_prefix="",
+        case_sensitive=False,
     )
 
     app_name: str = Field(default="Thesis Agent Backend", alias="APP_NAME")
@@ -20,11 +41,19 @@ class Settings(BaseSettings):
     )
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
+    # Server configuration
+    port: int = Field(default=8080, alias="PORT")
+    cors_origins: str = Field(
+        default="http://localhost:5173,http://localhost:3000",
+        alias="CORS_ORIGINS",
+        description="Comma-separated list of allowed CORS origins",
+    )
+
     gemini_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("GEMINI_API_KEY", "GOOGLE_API_KEY"),
     )
-    gemini_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_MODEL")
+    gemini_model: str = Field(default="gemini-3-flash-preview", alias="GEMINI_MODEL")
 
     # Optional: system prompt used only by McpService.
     # Lets you guide the agent behavior without affecting other Gemini usages.

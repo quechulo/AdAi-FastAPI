@@ -1,4 +1,3 @@
-import asyncio
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -7,6 +6,7 @@ from typing import Any, AsyncGenerator
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+
 class McpClient:
     """
     Manages the connection to the local MCP server subprocess.
@@ -14,7 +14,7 @@ class McpClient:
     def __init__(self, server_script_path: str = "app/mcp/server.py"):
         # Determine the absolute path to the server script
         self.server_script_path = os.path.abspath(server_script_path)
-        
+
         env = os.environ.copy()
         # 2. Add the current directory (Project Root) to PYTHONPATH
         # This allows the subprocess to perform imports like "from app.db..."
@@ -52,8 +52,8 @@ class McpClient:
                 if hasattr(item, "text"):
                     content_list.append({"type": "text", "text": item.text})
                 elif hasattr(item, "data"):
-                     content_list.append({"type": "image", "data": "..."}) # truncated for logs
-        
+                    content_list.append({"type": "image", "data": "..."}) # truncated for logs
+
         return {
             "content": content_list,
             "isError": getattr(result, "isError", False)

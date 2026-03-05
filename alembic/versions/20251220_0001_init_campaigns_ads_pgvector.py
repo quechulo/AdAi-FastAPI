@@ -1,7 +1,7 @@
 """init campaigns/ads schema
 
 Revision ID: 20251220_0001
-Revises: 
+Revises:
 Create Date: 2025-12-20
 
 """

@@ -4,10 +4,35 @@ FastAPI backend for a Gemini-powered chat endpoint.
 
 ## Quickstart
 
-Create `.env` and `.env-model`.
+### Local Development
+
+Create `.env` and `.env-model` files for local development:
+
+```bash
+cp .env.example .env
+cp .env-model.example .env-model
+```
 
 Use `.env` for app + database settings (see `.env.example`).
 Use `.env-model` for Gemini/model settings only (see `.env-model.example`).
+
+> **📚 For comprehensive configuration and secrets management guide, see [SECRETS_GUIDE.md](SECRETS_GUIDE.md)**
+
+### Production Deployment
+
+For deploying to Google Cloud Run with secure secrets management:
+
+1. **Setup secrets** (one-time):
+   ```bash
+   ./setup-secrets.sh
+   ```
+
+2. **Deploy**:
+   ```bash
+   ./deploy.sh
+   ```
+
+See [SECRETS_GUIDE.md](SECRETS_GUIDE.md) for detailed production deployment guide.
 
 ### `.env-model` (example)
 
