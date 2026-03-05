@@ -138,6 +138,7 @@ celerybeat.pid
 .env
 .env-model
 deploy.sh
+setup-secrets.sh
 .envrc
 .venv
 env/
