@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Environment files
+.env
+.env-model
+.env.*
+!.env.example
+!.env-model.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Testing
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Documentation
+README.md
+LICENSE
+*.md
+!alembic/README
+
+# Temporary files
+*.log
+*.tmp
+tmp/
+temp/
+
+# Alembic cache
+alembic/versions/__pycache__/
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Deployment
+deploy.sh
+.gcloudignore
