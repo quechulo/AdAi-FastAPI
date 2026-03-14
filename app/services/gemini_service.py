@@ -65,8 +65,9 @@ class GeminiService:
             # Extract token usage
             used_tokens = 0
             if hasattr(response, "usage_metadata") and response.usage_metadata:
-                used_tokens = getattr(
-                    response.usage_metadata, "total_token_count", 0
+                used_tokens = (
+                    getattr(response.usage_metadata, "total_token_count", None)
+                    or getattr(response.usage_metadata, "total_tokens", 0)
                 )
 
             text = getattr(response, "text", None)

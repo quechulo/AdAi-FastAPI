@@ -56,31 +56,57 @@ class MetricsCallbackHandler(BaseCallbackHandler):
             call_time = time.perf_counter() - start_time
             self.total_generation_time += call_time
 
-        # Extract token usage from LLM response metadata
-        # Google Gemini returns usage_metadata with total_token_count
-        if hasattr(response, "llm_output") and response.llm_output:
-            usage = response.llm_output.get("usage_metadata", {})
+        # Extract token usage from LLM response metadata.
+        # langchain-google-genai stores usage in generation.message.usage_metadata
+        # as a plain dict with keys: input_tokens, output_tokens, total_tokens.
+        # We also check llm_output and generation_info as fallbacks for other models.
+        def _extract_total_tokens(usage: Any) -> int:
             if isinstance(usage, dict):
-                tokens = usage.get("total_token_count", 0)
-                if tokens:
-                    self.total_tokens += tokens
-                    logger.debug(
-                        f"LLM call completed: {tokens} tokens, "
-                        f"cumulative: {self.total_tokens}"
-                    )
+                # Standard LangChain AIMessage format
+                return usage.get("total_tokens") or usage.get("total_token_count", 0)
+            # Protobuf UsageMetadata object
+            return getattr(usage, "total_tokens", 0) or getattr(usage, "total_token_count", 0)
 
-        # Alternative: check in generations metadata
-        if hasattr(response, "generations") and response.generations:
+        tokens = 0
+
+        # Primary: message.usage_metadata on ChatGeneration (langchain-google-genai)
+        if not tokens and hasattr(response, "generations") and response.generations:
             for generation_list in response.generations:
                 for generation in generation_list:
-                    if hasattr(generation, "generation_info"):
-                        gen_info = generation.generation_info or {}
-                        usage = gen_info.get("usage_metadata", {})
-                        if isinstance(usage, dict):
-                            tokens = usage.get("total_token_count", 0)
-                            if tokens:
-                                self.total_tokens += tokens
-                                break
+                    msg = getattr(generation, "message", None)
+                    usage = getattr(msg, "usage_metadata", None) if msg is not None else None
+                    if usage is not None:
+                        tokens = _extract_total_tokens(usage)
+                    if tokens:
+                        break
+                if tokens:
+                    break
+
+        # Fallback: llm_output (some model integrations)
+        if not tokens and hasattr(response, "llm_output") and response.llm_output:
+            usage = response.llm_output.get("usage_metadata")
+            if usage is not None:
+                tokens = _extract_total_tokens(usage)
+
+        # Fallback: generation_info
+        if not tokens and hasattr(response, "generations") and response.generations:
+            for generation_list in response.generations:
+                for generation in generation_list:
+                    gen_info = getattr(generation, "generation_info", None) or {}
+                    usage = gen_info.get("usage_metadata")
+                    if usage is not None:
+                        tokens = _extract_total_tokens(usage)
+                    if tokens:
+                        break
+                if tokens:
+                    break
+
+        if tokens:
+            self.total_tokens += tokens
+            logger.debug(
+                f"LLM call completed: {tokens} tokens, "
+                f"cumulative: {self.total_tokens}"
+            )
 
     def on_llm_error(
         self,

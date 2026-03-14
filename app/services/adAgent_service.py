@@ -163,8 +163,6 @@ class AdAgentService:
                 config={"callbacks": [metrics_callback]}
             )
 
-            print("----------Ad Agent Result--------------")
-            print("Ad Agent Result:", result)
             logger.info("Ad Agent Result: %s", result)
             result_messages = (
                 result.get("messages", [])
