@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from functools import wraps
 
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -80,7 +81,25 @@ class AdAgentService:
             temperature=0.1,
             api_key=self._settings.gemini_api_key,
         )
-        self.tools = [get_ads_by_keyword, get_ads_semantic]
+        self._active_metrics_callback: MetricsCallbackHandler | None = None
+
+        @wraps(get_ads_semantic)
+        async def get_ads_semantic_with_metrics(
+            *args: Any,
+            **kwargs: Any,
+        ) -> dict[str, Any]:
+            result = await get_ads_semantic(*args, **kwargs)
+            metrics = self._active_metrics_callback
+            if metrics and isinstance(result, dict):
+                raw_tokens = result.get("embedding_tokens", 0)
+                try:
+                    embedding_tokens = int(raw_tokens or 0)
+                except (TypeError, ValueError):
+                    embedding_tokens = 0
+                metrics.add_embedding_tokens(embedding_tokens)
+            return result
+
+        self.tools = [get_ads_by_keyword, get_ads_semantic_with_metrics]
 
         # Note: langchain.agents.create_agent does not accept a PromptTemplate;
         # it accepts a `system_prompt`
@@ -149,6 +168,7 @@ class AdAgentService:
         """
         # Initialize metrics tracking callback
         metrics_callback = MetricsCallbackHandler()
+        self._active_metrics_callback = metrics_callback
 
         try:
             lc_history = self._to_lc_messages(history)
@@ -197,17 +217,24 @@ class AdAgentService:
 
             # Extract metrics from callback
             metrics = metrics_callback.get_metrics()
+            ad_llm_tokens = metrics["llm_tokens"]
+            ad_embedding_tokens = metrics["embedding_tokens"]
+            ad_total_tokens = metrics["total_with_embeddings"]
 
             logger.info(
                 f"Ad agent completed: {metrics['llm_call_count']} LLM calls, "
-                f"{metrics['total_tokens']} tokens, "
+                f"{ad_llm_tokens} LLM tokens + "
+                f"{ad_embedding_tokens} embedding tokens "
+                f"= {ad_total_tokens} total tokens, "
                 f"{metrics['generation_time']:.3f}s"
             )
 
             return {
                 "ad_text": ad_text,
                 "generation_time": metrics["generation_time"],
-                "used_tokens": metrics["total_tokens"],
+                "used_tokens": ad_total_tokens,
+                "ad_llm_tokens": ad_llm_tokens,
+                "ad_embedding_tokens": ad_embedding_tokens,
             }
         except Exception:
             logger.exception(
@@ -215,8 +242,15 @@ class AdAgentService:
             )
             # Return metrics even on error
             metrics = metrics_callback.get_metrics()
+            ad_llm_tokens = metrics["llm_tokens"]
+            ad_embedding_tokens = metrics["embedding_tokens"]
+            ad_total_tokens = metrics["total_with_embeddings"]
             return {
                 "ad_text": None,
                 "generation_time": metrics["generation_time"],
-                "used_tokens": metrics["total_tokens"],
+                "used_tokens": ad_total_tokens,
+                "ad_llm_tokens": ad_llm_tokens,
+                "ad_embedding_tokens": ad_embedding_tokens,
             }
+        finally:
+            self._active_metrics_callback = None

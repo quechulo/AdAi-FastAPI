@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 
@@ -33,16 +34,27 @@ class McpService:
         )
         self._client = genai.Client(api_key=self._settings.gemini_api_key)
 
+    @staticmethod
+    def _extract_total_tokens(usage: object) -> int:
+        return (
+            getattr(usage, "total_token_count", None)
+            or getattr(usage, "total_tokens", 0)
+            or 0
+        )
+
     async def answer(
         self,
         *,
         message: str,
         history: list[ChatMessage],
         max_tool_steps: int = 6,
-    ) -> tuple[str, float, int]:
+    ) -> tuple[str, float, int, dict[str, float | int]]:
 
-        start_time = time.time()
+        start_time = time.perf_counter()
         total_tokens = 0
+        embedding_tokens = 0
+        llm_call_count = 0
+        tool_call_count = 0
 
         # 1. Prepare Initial Chat History
         contents: list[types.Content] = []
@@ -86,16 +98,13 @@ class McpService:
                             tool_config=tool_config,
                         )
                     )
+                    llm_call_count += 1
 
                     # Accumulate token usage across all loop iterations (including tool calls).
                     # google-genai SDK returns usage_metadata.total_token_count on the response.
                     usage = getattr(response, "usage_metadata", None)
                     if usage is not None:
-                        call_tokens = (
-                            getattr(usage, "total_token_count", None)
-                            or getattr(usage, "total_tokens", 0)
-                            or 0
-                        )
+                        call_tokens = self._extract_total_tokens(usage)
                         total_tokens += call_tokens
                         logger.debug(f"MCP step {i + 1}: {call_tokens} tokens, cumulative: {total_tokens}")
                     else:
@@ -116,13 +125,18 @@ class McpService:
                     if not function_calls:
                         text_parts = [p.text for p in cand.content.parts if p.text]
                         final_text = " ".join(text_parts) if text_parts else "No response generated."
-                        elapsed = time.time() - start_time
+                        elapsed = time.perf_counter() - start_time
+                        breakdown: dict[str, float | int] = {
+                            "llm_call_count": llm_call_count,
+                            "tool_call_count": tool_call_count,
+                        }
                         logger.info(f"MCP chat completed: {i + 1} LLM call(s), {total_tokens} tokens, {elapsed:.3f}s")
-                        return (final_text, elapsed, total_tokens)
+                        return (final_text, elapsed, total_tokens, breakdown)
 
                     # Execute Tools
                     parts_response = []
                     for call in function_calls:
+                        tool_call_count += 1
                         logger.info(f"Step {i+1}: Calling tool {call.name}")
                         print(f"Step {i+1}: Calling tool {call.name} with args {call.args}")
 
@@ -134,6 +148,19 @@ class McpService:
                             # We flatten it to a single string for the LLM
                             content_text = ""
                             if hasattr(result, 'content') and isinstance(result.content, list):
+                                for item in result.content:
+                                    item_text = getattr(item, "text", None)
+                                    if not isinstance(item_text, str):
+                                        continue
+                                    try:
+                                        payload = json.loads(item_text)
+                                    except json.JSONDecodeError:
+                                        continue
+                                    if isinstance(payload, dict):
+                                        embed_tokens = int(payload.get("embedding_tokens", 0) or 0)
+                                        if embed_tokens:
+                                            embedding_tokens += embed_tokens
+                                            total_tokens += embed_tokens
                                 content_text = "\n".join([c.text for c in result.content if hasattr(c, 'text')])
                             else:
                                 content_text = str(result)
@@ -152,8 +179,25 @@ class McpService:
 
                     contents.append(types.Content(role="user", parts=parts_response))
 
-                return ("Max tool steps reached. I could not find a final answer.", time.time() - start_time, total_tokens)
+                elapsed = time.perf_counter() - start_time
+                breakdown: dict[str, float | int] = {
+                    "llm_call_count": llm_call_count,
+                    "tool_call_count": tool_call_count,
+                    "embedding_tokens": embedding_tokens,
+                }
+                return (
+                    "Max tool steps reached. I could not find a final answer.",
+                    elapsed,
+                    total_tokens,
+                    breakdown,
+                )
 
         except Exception as e:
             logger.exception("Error in McpService")
-            return (f"System Error: {str(e)}", time.time() - start_time, total_tokens)
+            elapsed = time.perf_counter() - start_time
+            breakdown: dict[str, float | int] = {
+                "llm_call_count": llm_call_count,
+                "tool_call_count": tool_call_count,
+                "embedding_tokens": embedding_tokens,
+            }
+            return (f"System Error: {str(e)}", elapsed, total_tokens, breakdown)

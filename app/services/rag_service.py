@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from langchain_core.prompts import PromptTemplate
 from sqlalchemy.orm import Session
@@ -51,35 +52,67 @@ class RagService:
         history: list[ChatMessage],
         top_k: int,
     ) -> RagResponse:
+        total_start = time.perf_counter()
+        embedding_time = 0.0
+        retrieval_time = 0.0
+        llm_generation_time = 0.0
+        embedding_tokens = 0
+
         # 1) Embed the query
+        embed_start = time.perf_counter()
         try:
-            query_embedding = await self._gemini.embed_text(message)
+            query_embedding, embedding_tokens = await self._gemini.embed_text_with_usage(
+                message
+            )
+            embedding_time = time.perf_counter() - embed_start
         except Exception:
             logger.exception("RAG: failed to embed query; falling back to generic answer")
             response_text, generation_time, used_tokens = await self._gemini.generate_chat_response(
                 message=message, history=history
             )
+            llm_generation_time = generation_time
+            total_used_tokens = used_tokens + embedding_tokens
+            total_elapsed = time.perf_counter() - total_start
             return RagResponse(
                 response=response_text,
-                generation_time=generation_time,
-                used_tokens=used_tokens,
+                generation_time=total_elapsed,
+                used_tokens=total_used_tokens,
                 citations=[],
+                breakdown={
+                    "embedding_time": embedding_time,
+                    "retrieval_time": retrieval_time,
+                    "llm_generation_time": llm_generation_time,
+                    "embedding_tokens": embedding_tokens,
+                    "llm_generation_tokens": used_tokens,
+                },
             )
 
         # 2) Retrieve similar ads
+        retrieval_start = time.perf_counter()
         repo = AdsVectorRepository(self._db)
         matches = repo.search_ads_by_embedding(query_embedding=query_embedding, top_k=top_k)
+        retrieval_time = time.perf_counter() - retrieval_start
 
         # 3) Fallback when nothing relevant is found
         if not matches:
             response_text, generation_time, used_tokens = await self._gemini.generate_chat_response(
                 message=message, history=history
             )
+            llm_generation_time = generation_time
+            total_used_tokens = used_tokens + embedding_tokens
+            total_elapsed = time.perf_counter() - total_start
             return RagResponse(
                 response=response_text,
-                generation_time=generation_time,
-                used_tokens=used_tokens,
+                generation_time=total_elapsed,
+                used_tokens=total_used_tokens,
                 citations=[],
+                breakdown={
+                    "embedding_time": embedding_time,
+                    "retrieval_time": retrieval_time,
+                    "llm_generation_time": llm_generation_time,
+                    "embedding_tokens": embedding_tokens,
+                    "llm_generation_tokens": used_tokens,
+                },
             )
 
         # 4) Build context + citations payload
@@ -114,10 +147,20 @@ class RagService:
         response_text, generation_time, used_tokens = await self._gemini.generate_chat_response(
             message=rag_message, history=history
         )
+        llm_generation_time = generation_time
+        total_used_tokens = used_tokens + embedding_tokens
+        total_elapsed = time.perf_counter() - total_start
 
         return RagResponse(
             response=response_text,
-            generation_time=generation_time,
-            used_tokens=used_tokens,
+            generation_time=total_elapsed,
+            used_tokens=total_used_tokens,
             citations=citations,
+            breakdown={
+                "embedding_time": embedding_time,
+                "retrieval_time": retrieval_time,
+                "llm_generation_time": llm_generation_time,
+                "embedding_tokens": embedding_tokens,
+                "llm_generation_tokens": used_tokens,
+            },
         )

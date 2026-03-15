@@ -24,9 +24,15 @@ class MetricsCallbackHandler(BaseCallbackHandler):
     def __init__(self):
         super().__init__()
         self.total_tokens = 0
+        self.embedding_tokens = 0
         self.total_generation_time = 0.0
         self._call_start_times: dict[str, float] = {}
         self.llm_call_count = 0
+
+    def add_embedding_tokens(self, tokens: int) -> None:
+        """Accumulate tool-internal embedding token usage."""
+        if tokens > 0:
+            self.embedding_tokens += tokens
 
     def on_llm_start(
         self,
@@ -126,7 +132,10 @@ class MetricsCallbackHandler(BaseCallbackHandler):
     def get_metrics(self) -> dict[str, Any]:
         """Return aggregated metrics from all LLM calls."""
         return {
+            "llm_tokens": self.total_tokens,
+            "embedding_tokens": self.embedding_tokens,
             "total_tokens": self.total_tokens,
+            "total_with_embeddings": self.total_tokens + self.embedding_tokens,
             "generation_time": self.total_generation_time,
             "llm_call_count": self.llm_call_count,
         }
@@ -134,6 +143,7 @@ class MetricsCallbackHandler(BaseCallbackHandler):
     def reset(self) -> None:
         """Reset all metrics to zero."""
         self.total_tokens = 0
+        self.embedding_tokens = 0
         self.total_generation_time = 0.0
         self._call_start_times.clear()
         self.llm_call_count = 0
