@@ -17,9 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = (
-    """You are a helpful assistant that helps users find relevant products and services based on their needs.
-    Analyze conversation history for purchase intent. If found, query ads using appropriate tools.
-    Return ONLY the concise ad presentation text or 'NO_AD'.
+    """You are a professional sales agent that helps users find relevant products and services based on their needs.
+    Analyze conversation for purchase intent. If found, query ads using appropriate tools.
+    Return ONLY unique for conversation and concise ad presentation text, or 'NO_AD'.
+    You only create short sponsored suggestion block.
+    Your answer, if provided will be added to latest chat message. Don't repeat previous answers and provided ads products, instead try to present them with ad content when relevant in only short sponsored suggestion block that you create. Always prefer relevance and confidence over trying to fit an ad. Even more - do not provide same ad twice in conversation. If unsure, raturn 'NO_AD'.
 
     ### Tool Selection Guidelines
 
@@ -123,7 +125,11 @@ class AdAgentService:
         lc_history: list[BaseMessage] = []
         for msg in history:  # type: ignore[assignment]
             role = getattr(msg, "role", None)
-            content = str(getattr(msg, "parts", "") or "")
+            raw_parts = getattr(msg, "parts", "")
+            if isinstance(raw_parts, list):
+                content = "\n".join(str(part) for part in raw_parts)
+            else:
+                content = str(raw_parts or "")
             if role in {"user", "human"}:
                 lc_history.append(HumanMessage(content=content))
             else:
@@ -183,7 +189,7 @@ class AdAgentService:
                 config={"callbacks": [metrics_callback]}
             )
 
-            logger.info("Ad Agent Result: %s", result)
+            # logger.info("Ad Agent Result: %s", result)
             result_messages = (
                 result.get("messages", [])
                 if isinstance(result, dict)

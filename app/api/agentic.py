@@ -1,5 +1,5 @@
-import asyncio
 import logging
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.dependencies import get_agentic_service, get_gemini_service
@@ -35,10 +35,7 @@ async def chat_agentic(
             latest_message=request.message,
         )
 
-        chat_response, ad_response = await asyncio.gather(
-            chat_task,
-            ad_task
-        )
+        chat_response, ad_response = await asyncio.gather(chat_task, ad_task)
 
         response, chat_generation_time, chat_used_tokens = chat_response
 
@@ -59,6 +56,8 @@ async def chat_agentic(
             ad_used_tokens = ad_llm_tokens + ad_embedding_tokens
 
         # Build final response with merged content
+        logger.info("Chat Response: %s", chat_response)
+        logger.info("Ad Agent Response: %s", ad_response)
         final_response = response
         if ad_text:
             final_response += (
@@ -71,6 +70,8 @@ async def chat_agentic(
 
         return AgenticChatResponse(
             response=final_response,
+            chat_response=response,
+            ad_text=ad_text,
             generation_time=total_generation_time,
             used_tokens=total_used_tokens,
             breakdown={

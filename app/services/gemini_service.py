@@ -14,6 +14,11 @@ from app.models.chat import ChatMessage
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_CHAT_SYSTEM_PROMPT = (
+    "You are helpful assistant. Answer normally. Do not copy or repeat any previous response segment "
+    "that starts with '\n\n----------------\n' (sponsored separator block)."
+)
+
 
 class GeminiService:
     def __init__(self, settings: Settings | None = None):
@@ -62,6 +67,11 @@ class GeminiService:
             )
         )
 
+        system_prompt = (
+            self._settings.gemini_chat_system_prompt
+            or _DEFAULT_CHAT_SYSTEM_PROMPT
+        )
+
         def _send() -> tuple[str, float, int]:
             # Measure generation time
             start_time = time.perf_counter()
@@ -69,6 +79,9 @@ class GeminiService:
             response = self._client.models.generate_content(
                 model=self._settings.gemini_model,
                 contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                ),
             )
 
             end_time = time.perf_counter()
@@ -152,8 +165,6 @@ class GeminiService:
         except Exception:
             logger.exception("Gemini embeddings request failed")
             raise
-
-
 
     async def embed_text_with_usage(self, text: str) -> tuple[list[float], int]:
         vectors, used_tokens = await self.embed_texts_with_usage([text])
