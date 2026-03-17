@@ -29,11 +29,16 @@ async def mcp_endpoint(
     mcp_service: McpService = Depends(get_mcp_service),
 ) -> ChatResponse:
     try:
-        response_text = await mcp_service.answer(
+        response_text, generation_time, used_tokens, breakdown = await mcp_service.answer(
             message=request.message,
             history=request.history,
         )
-        return ChatResponse(response=response_text)
+        return ChatResponse(
+            response=response_text,
+            generation_time=generation_time,
+            used_tokens=used_tokens,
+            breakdown=breakdown,
+        )
     except TimeoutError as e:
         raise HTTPException(
             status_code=504,

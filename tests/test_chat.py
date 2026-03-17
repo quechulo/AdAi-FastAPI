@@ -5,7 +5,7 @@ from app.main import create_app
 
 class _FakeGeminiService:
     async def generate_chat_response(self, message: str, history):
-        return f"echo:{message}"
+        return (f"echo:{message}", 0.123, 42)
 
 
 def test_chat_happy_path(monkeypatch):
@@ -19,7 +19,12 @@ def test_chat_happy_path(monkeypatch):
     client = TestClient(app)
     r = client.post("/api/v1/chat", json={"message": "hi", "history": []})
     assert r.status_code == 200
-    assert r.json() == {"response": "echo:hi"}
+    assert r.json() == {
+        "response": "echo:hi",
+        "generation_time": 0.123,
+        "used_tokens": 42,
+        "breakdown": {"llm_call_count": 1},
+    }
 
 
 def test_chat_schema_defaults(monkeypatch):
@@ -32,3 +37,9 @@ def test_chat_schema_defaults(monkeypatch):
     client = TestClient(app)
     r = client.post("/api/v1/chat", json={"message": "hi"})
     assert r.status_code == 200
+    assert r.json() == {
+        "response": "echo:hi",
+        "generation_time": 0.123,
+        "used_tokens": 42,
+        "breakdown": {"llm_call_count": 1},
+    }

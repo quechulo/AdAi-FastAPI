@@ -134,6 +134,35 @@ Endpoints:
 - `GET /` basic health
 - `GET /health` liveness
 - `POST /api/v1/chat`
+- `POST /api/v1/rag-chat`
+- `POST /api/v1/mcp-chat`
+- `POST /api/v1/agentic-chat`
+
+## Metrics semantics (normalized)
+
+All chat-like responses include:
+- `generation_time` (seconds)
+- `used_tokens` (LLM generation tokens + embedding tokens where applicable)
+- `breakdown` (optional per-endpoint details)
+
+Normalization rules by endpoint:
+- `/api/v1/chat`
+   - `generation_time`: single Gemini generation call latency
+   - `used_tokens`: tokens from that generation call
+- `/api/v1/rag-chat`
+   - `generation_time`: end-to-end latency (embed + retrieve + generate)
+   - `used_tokens`: generation tokens + embedding tokens
+   - `breakdown`: `embedding_time`, `retrieval_time`, `llm_generation_time`, `embedding_tokens`, `llm_generation_tokens`
+- `/api/v1/mcp-chat`
+   - `generation_time`: end-to-end MCP loop latency
+   - `used_tokens`: sum of MCP LLM generation tokens + embedding tokens reported by semantic tool calls
+   - `breakdown`: `llm_call_count`, `tool_call_count`, `embedding_tokens`
+- `/api/v1/agentic-chat`
+   - `generation_time`: `max(chat_generation_time, ad_generation_time)`
+   - `used_tokens`: `chat_used_tokens + ad_used_tokens`
+   - `ad_used_tokens`: `ad_llm_tokens + ad_embedding_tokens` (embedding part is non-zero when semantic ad tool is used)
+   - `breakdown`: includes `ad_llm_tokens`, `ad_embedding_tokens`, `ad_total_tokens`
+   - this preserves parallel execution timing semantics
 
 ## Tests
 

@@ -1,5 +1,5 @@
-import asyncio
 import logging
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.dependencies import get_agentic_service, get_gemini_service
@@ -35,41 +35,61 @@ async def chat_agentic(
             latest_message=request.message,
         )
 
-        chat_response, ad_response = await asyncio.gather(
-            chat_task,
-            ad_task
-        )
+        chat_response, ad_response = await asyncio.gather(chat_task, ad_task)
 
         response, chat_generation_time, chat_used_tokens = chat_response
 
         # Extract ad text and metrics from ad agent response
         ad_text = ad_response.get("ad_text")
         ad_generation_time = ad_response.get("generation_time", 0.0)
-        ad_used_tokens = ad_response.get("used_tokens", 0)
+        legacy_ad_used_tokens = int(ad_response.get("used_tokens", 0) or 0)
+        raw_ad_llm_tokens = ad_response.get("ad_llm_tokens")
+        raw_ad_embedding_tokens = ad_response.get("ad_embedding_tokens")
+
+        if raw_ad_llm_tokens is None and raw_ad_embedding_tokens is None:
+            ad_llm_tokens = legacy_ad_used_tokens
+            ad_embedding_tokens = 0
+            ad_used_tokens = legacy_ad_used_tokens
+        else:
+            ad_llm_tokens = int(raw_ad_llm_tokens or 0)
+            ad_embedding_tokens = int(raw_ad_embedding_tokens or 0)
+            ad_used_tokens = ad_llm_tokens + ad_embedding_tokens
 
         # Build final response with merged content
+        logger.info("Chat Response: %s", chat_response)
+        logger.info("Ad Agent Response: %s", ad_response)
         final_response = response
         if ad_text:
             final_response += (
-                "\n\n----------------\nSponsored Suggestion:\n"
+                "\n\n----------------\n"
                 f"{ad_text}"
             )
 
-        total_generation_time = (
-            max(chat_generation_time, ad_generation_time)
-        )
+        total_generation_time = max(chat_generation_time, ad_generation_time)
         total_used_tokens = chat_used_tokens + ad_used_tokens
 
         return AgenticChatResponse(
             response=final_response,
+            chat_response=response,
+            ad_text=ad_text,
             generation_time=total_generation_time,
             used_tokens=total_used_tokens,
+            breakdown={
+                "chat_generation_time": chat_generation_time,
+                "ad_generation_time": ad_generation_time,
+                "ad_llm_tokens": ad_llm_tokens,
+                "ad_embedding_tokens": ad_embedding_tokens,
+                "ad_total_tokens": ad_used_tokens,
+                "aggregation": "max_parallel",
+            },
             ad_generation_time=ad_generation_time,
             ad_used_tokens=ad_used_tokens,
             metadata={
                 "ad_injected": bool(ad_text),
                 "chat_generation_time": chat_generation_time,
                 "chat_used_tokens": chat_used_tokens,
+                "ad_llm_tokens": ad_llm_tokens,
+                "ad_embedding_tokens": ad_embedding_tokens,
             },
         )
     except Exception as e:

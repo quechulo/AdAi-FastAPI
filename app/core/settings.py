@@ -54,6 +54,10 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("GEMINI_API_KEY", "GOOGLE_API_KEY"),
     )
     gemini_model: str = Field(default="gemini-3-flash-preview", alias="GEMINI_MODEL")
+    gemini_chat_system_prompt: str | None = Field(
+        default=None,
+        alias="GEMINI_CHAT_SYSTEM_PROMPT",
+    )
 
     # Optional: system prompt used only by McpService.
     # Lets you guide the agent behavior without affecting other Gemini usages.

@@ -143,10 +143,13 @@ async def get_ads_semantic(search_query: str, limit: int = 5) -> dict[str, Any]:
         where score is cosine similarity (higher=better) and distance is cosine distance (lower=better).
     """
     settings = get_settings()
+    embedding_tokens = 0
     try:
         # Using GeminiService to embed the query string
         gemini = GeminiService(settings=settings)
-        query_embedding = await gemini.embed_text(search_query)
+        query_embedding, embedding_tokens = await gemini.embed_text_with_usage(
+            search_query
+        )
     except Exception as e:
         return {"error": f"Failed to embed query: {str(e)}"}
 
@@ -164,6 +167,7 @@ async def get_ads_semantic(search_query: str, limit: int = 5) -> dict[str, Any]:
             return {
                 "query_intent": search_query,
                 "count": len(matches),
+                "embedding_tokens": embedding_tokens,
                 "ads": [
                     {
                         "score": m.score,

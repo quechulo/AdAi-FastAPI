@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from pydantic import BaseModel, Field
 
 
@@ -18,10 +19,13 @@ class ChatResponse(BaseModel):
     response: str
     generation_time: float = 0.0
     used_tokens: int = 0
+    breakdown: dict[str, Any] = Field(default_factory=dict)
 
 
 class AgenticChatResponse(ChatResponse):
     """Extended chat response with ad agent metrics breakdown."""
+    chat_response: str = ""
+    ad_text: str | None = None
     ad_generation_time: float = 0.0
     ad_used_tokens: int = 0
     metadata: dict = Field(default_factory=dict)

@@ -14,6 +14,11 @@ from app.models.chat import ChatMessage
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_CHAT_SYSTEM_PROMPT = (
+    "You are helpful assistant. Answer normally. Do not copy or repeat any previous response segment "
+    "that starts with '\n\n----------------\n' (sponsored separator block)."
+)
+
 
 class GeminiService:
     def __init__(self, settings: Settings | None = None):
@@ -25,6 +30,18 @@ class GeminiService:
         # Recommended google-genai usage: instantiate a client.
         # Ref: https://pypi.org/project/google-genai/
         self._client = genai.Client(api_key=self._settings.gemini_api_key)
+
+    @staticmethod
+    def _extract_total_tokens(usage: object | None) -> int:
+        if usage is None:
+            return 0
+        return (
+            getattr(usage, "total_token_count", None)
+            or getattr(usage, "total_tokens", None)
+            or getattr(usage, "prompt_token_count", None)
+            or getattr(usage, "input_token_count", 0)
+            or 0
+        )
 
     async def generate_chat_response(
             self,
@@ -50,6 +67,11 @@ class GeminiService:
             )
         )
 
+        system_prompt = (
+            self._settings.gemini_chat_system_prompt
+            or _DEFAULT_CHAT_SYSTEM_PROMPT
+        )
+
         def _send() -> tuple[str, float, int]:
             # Measure generation time
             start_time = time.perf_counter()
@@ -57,17 +79,17 @@ class GeminiService:
             response = self._client.models.generate_content(
                 model=self._settings.gemini_model,
                 contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                ),
             )
 
             end_time = time.perf_counter()
             generation_time = end_time - start_time
 
             # Extract token usage
-            used_tokens = 0
-            if hasattr(response, "usage_metadata") and response.usage_metadata:
-                used_tokens = getattr(
-                    response.usage_metadata, "total_token_count", 0
-                )
+            usage = getattr(response, "usage_metadata", None)
+            used_tokens = self._extract_total_tokens(usage)
 
             text = getattr(response, "text", None)
             if isinstance(text, str) and text.strip():
@@ -81,8 +103,15 @@ class GeminiService:
             raise
 
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        vectors, _ = await self.embed_texts_with_usage(texts)
+        return vectors
+
+    async def embed_texts_with_usage(
+        self,
+        texts: list[str],
+    ) -> tuple[list[list[float]], int]:
         if not texts:
-            return []
+            return ([], 0)
 
         expected_dim = int(self._settings.gemini_embedding_dim)
 
@@ -91,7 +120,7 @@ class GeminiService:
             wait=wait_exponential_jitter(initial=1, max=20),
             reraise=True,
         )
-        def _embed() -> list[list[float]]:
+        def _embed() -> tuple[list[list[float]], int]:
             response = self._client.models.embed_content(
                 model=self._settings.gemini_embedding_model,
                 contents=texts,
@@ -127,7 +156,9 @@ class GeminiService:
                     f"Gemini embeddings count mismatch: got {len(vectors)}\
                     expected {len(texts)}"
                 )
-            return vectors
+            usage = getattr(response, "usage_metadata", None)
+            used_tokens = self._extract_total_tokens(usage)
+            return (vectors, used_tokens)
 
         try:
             return await asyncio.to_thread(_embed)
@@ -135,6 +166,6 @@ class GeminiService:
             logger.exception("Gemini embeddings request failed")
             raise
 
-    async def embed_text(self, text: str) -> list[float]:
-        vectors = await self.embed_texts([text])
-        return vectors[0]
+    async def embed_text_with_usage(self, text: str) -> tuple[list[float], int]:
+        vectors, used_tokens = await self.embed_texts_with_usage([text])
+        return vectors[0], used_tokens

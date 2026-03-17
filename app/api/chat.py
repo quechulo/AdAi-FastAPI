@@ -29,6 +29,9 @@ async def chat_endpoint(
             response=response_text,
             generation_time=generation_time,
             used_tokens=used_tokens,
+            breakdown={
+                "llm_call_count": 1,
+            },
         )
     except Exception as e:
         logger.exception("Chat endpoint failed")
