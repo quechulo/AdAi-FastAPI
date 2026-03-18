@@ -138,12 +138,10 @@ class McpService:
                     for call in function_calls:
                         tool_call_count += 1
                         logger.info(f"Step {i+1}: Calling tool {call.name}")
-                        print(f"Step {i+1}: Calling tool {call.name} with args {call.args}")
 
                         try:
                             # Call the tool via MCP
                             result = await mcp_session.call_tool(call.name, arguments=call.args)
-                            print(f"Tool {call.name} returned result: {result}")
                             # Parse result content (MCP returns a list of text/image content)
                             # We flatten it to a single string for the LLM
                             content_text = ""
