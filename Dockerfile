@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for FastAPI on Google Cloud Run
 # Stage 1: Build dependencies
-FROM python:3.13-slim as builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
