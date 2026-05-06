@@ -156,8 +156,17 @@ class GeminiService:
                     f"Gemini embeddings count mismatch: got {len(vectors)}\
                     expected {len(texts)}"
                 )
-            usage = getattr(response, "usage_metadata", None)
-            used_tokens = self._extract_total_tokens(usage)
+
+            try:
+                count_response = self._client.models.count_tokens(
+                    model=self._settings.gemini_embedding_model,
+                    contents=texts,
+                )
+                used_tokens = getattr(count_response, "total_tokens", 0) or 0
+            except Exception as e:
+                logger.warning(f"Failed to count tokens for embeddings: {e}")
+                used_tokens = 0
+
             return (vectors, used_tokens)
 
         try:
