@@ -68,9 +68,7 @@ class MetricsCallbackHandler(BaseCallbackHandler):
         # We also check llm_output and generation_info as fallbacks for other models.
         def _extract_total_tokens(usage: Any) -> int:
             if isinstance(usage, dict):
-                # Standard LangChain AIMessage format
-                return usage.get("total_tokens") or usage.get("total_token_count", 0)
-            # Protobuf UsageMetadata object
+                return usage.get("total_tokens", 0) or usage.get("total_token_count", 0)
             return getattr(usage, "total_tokens", 0) or getattr(usage, "total_token_count", 0)
 
         tokens = 0

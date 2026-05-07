@@ -35,13 +35,7 @@ class GeminiService:
     def _extract_total_tokens(usage: object | None) -> int:
         if usage is None:
             return 0
-        return (
-            getattr(usage, "total_token_count", None)
-            or getattr(usage, "total_tokens", None)
-            or getattr(usage, "prompt_token_count", None)
-            or getattr(usage, "input_token_count", 0)
-            or 0
-        )
+        return getattr(usage, "total_token_count", 0)
 
     async def generate_chat_response(
             self,
@@ -73,7 +67,6 @@ class GeminiService:
         )
 
         def _send() -> tuple[str, float, int]:
-            # Measure generation time
             start_time = time.perf_counter()
 
             response = self._client.models.generate_content(
@@ -87,7 +80,6 @@ class GeminiService:
             end_time = time.perf_counter()
             generation_time = end_time - start_time
 
-            # Extract token usage
             usage = getattr(response, "usage_metadata", None)
             used_tokens = self._extract_total_tokens(usage)
 
@@ -147,8 +139,6 @@ class GeminiService:
                         f"Embedding dimension mismatch: got {len(vec)}\
                         expected {expected_dim}"
                     )
-                if not all(math.isfinite(x) for x in vec):
-                    raise ValueError("Embedding contains non-finite values")
                 vectors.append(vec)
 
             if len(vectors) != len(texts):

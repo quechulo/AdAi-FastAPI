@@ -94,19 +94,12 @@ class AdAgentService:
             result = await get_ads_semantic(*args, **kwargs)
             metrics = self._active_metrics_callback
             if metrics and isinstance(result, dict):
-                raw_tokens = result.get("embedding_tokens", 0)
-                try:
-                    embedding_tokens = int(raw_tokens or 0)
-                except (TypeError, ValueError):
-                    embedding_tokens = 0
+                embedding_tokens = int(result.get("embedding_tokens", 0))
                 metrics.add_embedding_tokens(embedding_tokens)
             return result
 
         self.tools = [get_ads_by_keyword, get_ads_semantic_with_metrics]
 
-        # Note: langchain.agents.create_agent does not accept a PromptTemplate;
-        # it accepts a `system_prompt`
-        # which will be prepended as a SystemMessage.
         self.agent = create_agent(
             self.llm,
             self.tools,
@@ -184,13 +177,11 @@ class AdAgentService:
                 HumanMessage(content=latest_message)
             ]
 
-            # Execute agent with metrics tracking
             result = await self.agent.ainvoke(
                 {"messages": messages},
                 config={"callbacks": [metrics_callback]}
             )
 
-            # logger.info("Ad Agent Result: %s", result)
             result_messages = (
                 result.get("messages", [])
                 if isinstance(result, dict)
@@ -222,7 +213,6 @@ class AdAgentService:
                 else cleaned
             )
 
-            # Extract metrics from callback
             metrics = metrics_callback.get_metrics()
             ad_llm_tokens = metrics["llm_tokens"]
             ad_embedding_tokens = metrics["embedding_tokens"]
@@ -247,7 +237,6 @@ class AdAgentService:
             logger.exception(
                 "AdAgentService failed while analyzing and fetching ad"
             )
-            # Return metrics even on error
             metrics = metrics_callback.get_metrics()
             ad_llm_tokens = metrics["llm_tokens"]
             ad_embedding_tokens = metrics["embedding_tokens"]
