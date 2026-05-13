@@ -64,7 +64,6 @@ class Settings(BaseSettings):
     mcp_system_prompt: str | None = Field(default=None, alias="MCP_SYSTEM_PROMPT")
 
     # Embeddings
-    # NOTE: DB schema uses Vector(768). Keep these aligned.
     gemini_embedding_model: str = Field(
         default="gemini-embedding-001", alias="GEMINI_EMBEDDING_MODEL"
     )

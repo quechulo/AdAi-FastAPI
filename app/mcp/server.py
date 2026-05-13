@@ -17,10 +17,6 @@ mcp = FastMCP("AdAI-MCP")
 def _ad_to_payload(ad: Ad) -> dict[str, Any]:
     """
     Convert an Ad ORM model to a dictionary payload.
-
-    Note: Return structure differs between tools:
-    - get_ads_by_keyword: Returns this dict directly in 'ads' array
-    - get_ads_semantic: Wraps this in {'score', 'distance', 'data'} objects
     """
     cpc = ad.cpc
     if isinstance(cpc, Decimal):
@@ -79,7 +75,6 @@ async def get_ads_by_keyword(keyword: str, limit: int = 8) -> dict[str, Any]:
 
     def _query_ads() -> dict[str, Any]:
         # Use the readonly session generator manually since we are outside FastAPI DI
-        # Important: create/use the SQLAlchemy Session inside the worker thread.
         session_gen = get_db_session()
         try:
             db = next(session_gen)

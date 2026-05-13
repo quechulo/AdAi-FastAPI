@@ -18,12 +18,6 @@ async def chat_agentic(
     gemini_service: GeminiService = Depends(get_gemini_service),
     ad_agent_service: AdAgentService = Depends(get_agentic_service),
 ) -> AgenticChatResponse:
-    """
-    Orchestrates the conversation:
-    1. Parses History
-    2. Runs Chat and Ad Agent in PARALLEL (for speed)
-    3. Merges results and aggregates metrics
-    """
     try:
         chat_task = gemini_service.generate_chat_response(
             message=request.message,
@@ -39,23 +33,17 @@ async def chat_agentic(
 
         response, chat_generation_time, chat_used_tokens = chat_response
 
-        # Extract ad text and metrics from ad agent response
         ad_text = ad_response.get("ad_text")
         ad_generation_time = ad_response.get("generation_time", 0.0)
-        legacy_ad_used_tokens = int(ad_response.get("used_tokens", 0) or 0)
-        raw_ad_llm_tokens = ad_response.get("ad_llm_tokens")
-        raw_ad_embedding_tokens = ad_response.get("ad_embedding_tokens")
+        
+        ad_llm_tokens = int(ad_response.get("ad_llm_tokens", 0))
+        ad_embedding_tokens = int(ad_response.get("ad_embedding_tokens", 0))
+        ad_used_tokens = ad_llm_tokens + ad_embedding_tokens
+        
+        if ad_used_tokens == 0:
+            ad_used_tokens = int(ad_response.get("used_tokens", 0))
+            ad_llm_tokens = ad_used_tokens
 
-        if raw_ad_llm_tokens is None and raw_ad_embedding_tokens is None:
-            ad_llm_tokens = legacy_ad_used_tokens
-            ad_embedding_tokens = 0
-            ad_used_tokens = legacy_ad_used_tokens
-        else:
-            ad_llm_tokens = int(raw_ad_llm_tokens or 0)
-            ad_embedding_tokens = int(raw_ad_embedding_tokens or 0)
-            ad_used_tokens = ad_llm_tokens + ad_embedding_tokens
-
-        # Build final response with merged content
         logger.info("Chat Response: %s", chat_response)
         logger.info("Ad Agent Response: %s", ad_response)
         final_response = response

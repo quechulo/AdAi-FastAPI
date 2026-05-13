@@ -36,11 +36,7 @@ class McpService:
 
     @staticmethod
     def _extract_total_tokens(usage: object) -> int:
-        return (
-            getattr(usage, "total_token_count", None)
-            or getattr(usage, "total_tokens", 0)
-            or 0
-        )
+        return getattr(usage, "total_token_count", 0)
 
     async def answer(
         self,
@@ -56,7 +52,6 @@ class McpService:
         llm_call_count = 0
         tool_call_count = 0
 
-        # 1. Prepare Initial Chat History
         contents: list[types.Content] = []
         for msg in history:
             role = "model" if msg.role == "assistant" else "user"
@@ -68,7 +63,6 @@ class McpService:
             # Connect to MCP Session
             async with self._mcp.session() as mcp_session:
 
-                # 2. Discover Tools
                 tools_result = await mcp_session.list_tools()
                 gemini_tools = []
 
